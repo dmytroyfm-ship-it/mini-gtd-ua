@@ -1,9 +1,7 @@
 // Повна картка задачі — «пульт керування»: назва, чекбокс
 // «виконано», кошик, теги (+ додати), статус і список (dropdown —
 // зміна списку одразу переносить задачу), дедлайн (date picker +
-// очистити), підзадачі (можна прибрати прапорцем hideSubtasks —
-// сторінки «Читати/Дивитись», «Колись», «Архів» їх не показують,
-// бо підзадачі мають сенс лише для активних задач).
+// очистити), підзадачі.
 //
 // Dropdown «Статус» керує тим самим полем status, що й колонки
 // дошки /board (drag-and-drop) — це навмисно один і той самий
@@ -50,7 +48,6 @@ export function renderTaskCard(task, handlers = {}) {
     draggable,
     detail,
     detailedSubtasks,
-    hideSubtasks,
   } = handlers;
 
   const card = document.createElement("li");
@@ -135,14 +132,10 @@ export function renderTaskCard(task, handlers = {}) {
       <button type="button" class="task-card__due-clear" aria-label="Прибрати дедлайн" ${task.due_date ? "" : "hidden"}>✕</button>
     </div>
 
-    ${
-      hideSubtasks
-        ? ""
-        : `<div class="task-card__subtasks">
+    <div class="task-card__subtasks">
       <p class="task-card__subtasks-title">Підзадачі</p>
       <p class="task-card__subtasks-loading">Завантаження…</p>
-    </div>`
-    }
+    </div>
   `;
 
   // Значення <select> виставляються властивістю, не HTML-атрибутом
@@ -156,7 +149,7 @@ export function renderTaskCard(task, handlers = {}) {
   wireListSelect(card, task, onListChange);
   wireDueDate(card, task, onDueDateChange);
   wireAddTag(card, task, onAddTag);
-  if (!hideSubtasks) loadSubtasks(card, task, detailedSubtasks);
+  loadSubtasks(card, task, detailedSubtasks);
 
   return card;
 }

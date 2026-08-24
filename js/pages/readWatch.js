@@ -6,5 +6,4 @@ export const renderReadWatch = createListPage({
   list: "read_watch",
   title: "Читати / Дивитись",
   emptyText: "Тут з'являться задачі, перенесені сюди зі «Вхідних».",
-  hideSubtasks: true,
 });
