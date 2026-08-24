@@ -21,7 +21,7 @@ import {
 } from "../store/taskStore.js";
 import { renderTaskList } from "../components/TaskList.js";
 
-export function createListPage({ list, title, emptyText }) {
+export function createListPage({ list, title, emptyText, hideSubtasks }) {
   return async function renderListPage(root) {
     root.innerHTML = `<h1 class="page__title">${title}</h1>`;
 
@@ -44,6 +44,7 @@ export function createListPage({ list, title, emptyText }) {
             onListChange: handleListChange,
             onDueDateChange: handleDueDateChange,
             onAddTag: handleAddTag,
+            hideSubtasks,
           },
           emptyText
         );

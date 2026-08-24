@@ -122,7 +122,7 @@ export async function renderBoard(root) {
 
       const body = document.createElement("div");
       body.className = "board-column__body";
-      body.appendChild(renderTaskList(buckets[col.key], cardHandlers, "Порожньо."));
+      body.appendChild(renderTaskList(buckets[col.key], cardHandlers, ""));
       columnEl.appendChild(body);
 
       body.addEventListener("dragover", (event) => {

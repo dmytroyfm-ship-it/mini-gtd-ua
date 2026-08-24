@@ -6,11 +6,20 @@
   max-width: var(--board-width);
 }
 
+/* Колонок за замовчуванням лише три — вони зазвичай вужчі за
+   .page--wide (потрібен більший запас для випадку, коли показані
+   й приховані статуси). Без цього ряд колонок притискався б до
+   лівого краю широкої сторінки, а не стояв по центру, як усе інше
+   (fit-content + margin: auto — той самий трюк, що центрує колонки,
+   коли вони вужчі за сторінку, і сам відступає вбік, не заважаючи
+   overflow-x: auto, коли колонок стає забагато й вони не влазять). */
 .board {
   display: flex;
   align-items: flex-start;
   gap: 1rem;
-  margin-top: 1.5rem;
+  width: fit-content;
+  max-width: 100%;
+  margin: 1.5rem auto 0;
   overflow-x: auto;
   padding-bottom: 0.5rem;
 }
