@@ -5,6 +5,7 @@
 // (див. PROJECT_RULES.md, п.6).
 
 import { renderInbox } from "./pages/inbox.js";
+import { renderNext } from "./pages/next.js";
 import { renderTrash } from "./pages/trash.js";
 import { renderStub } from "./pages/stub.js";
 import { renderAuth } from "./pages/auth.js";
@@ -16,7 +17,7 @@ const AUTH_PATH = "/auth";
 const ROUTES = [
   { path: "/auth", title: "Вхід", render: renderAuth, protected: false, bare: true },
   { path: "/inbox", title: "Вхідні", render: renderInbox, protected: true },
-  { path: "/list/next", title: "Задачі", render: (root) => renderStub(root, "Задачі"), protected: true },
+  { path: "/list/next", title: "Задачі", render: renderNext, protected: true },
   { path: "/list/read_watch", title: "Читати / Дивитись", render: (root) => renderStub(root, "Читати / Дивитись"), protected: true },
   { path: "/list/someday", title: "Колись", render: (root) => renderStub(root, "Колись"), protected: true },
   { path: "/list/archive", title: "Архів", render: (root) => renderStub(root, "Архів"), protected: true },

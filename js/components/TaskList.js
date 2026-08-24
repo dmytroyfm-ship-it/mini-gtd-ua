@@ -3,7 +3,10 @@
 
 import { renderTaskCard } from "./TaskCard.js";
 
-export function renderTaskList(tasks, handlers) {
+// emptyText — підказка під заголовком порожнього стану; сторінки
+// без форми додавання (напр. «Задачі») передають свій варіант,
+// бо «...формою вище» там не мало б сенсу.
+export function renderTaskList(tasks, handlers, emptyText = "Додайте першу задачу формою вище ☝️") {
   if (tasks.length === 0) {
     const empty = document.createElement("div");
     empty.className = "task-list-card";
@@ -14,7 +17,7 @@ export function renderTaskList(tasks, handlers) {
           <path d="M20 33.5L28 41.5L44 24.5" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
         <p class="task-list-card__empty-title">Все чисто!</p>
-        <p class="task-list-card__empty-text">Додайте першу задачу формою вище ☝️</p>
+        <p class="task-list-card__empty-text">${emptyText}</p>
       </div>
     `;
     return empty;
