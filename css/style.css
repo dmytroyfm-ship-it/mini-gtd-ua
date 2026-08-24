@@ -1,0 +1,113 @@
+/* Mini GTD UA — глобальні стилі та дизайн-токени.
+   Усі кольори в проєкті визначаються ТІЛЬКИ тут, у :root.
+   Компоненти звертаються до них лише через var(--...),
+   без хардкоджених значень (див. PROJECT_RULES.md, п.4). */
+
+:root {
+  /* фон — матовий, з холодним індиговим підтоном */
+  --bg: #0a0b13;
+  --bg-soft: #13141f;
+  --bg-raised: #1a1c2a;
+
+  /* текст — холодний білий / приглушений індиго-сірий */
+  --ink: #ecedf4;
+  --ink-dim: #8b8fa5;
+
+  /* акцент — яскравий гранатово-червоний + бордовий для приглушених станів */
+  --accent: #d5395a;
+  --accent-dim: #7a2436;
+  --accent-soft: rgba(213, 57, 90, 0.16);
+
+  /* лінії, підкладки, фонове світло */
+  --line: #262a3c;
+  --overlay: rgba(5, 6, 12, 0.74);
+  --glow: rgba(213, 57, 90, 0.09);
+
+  /* типографіка */
+  --font-display: "Unbounded", "Golos Text", system-ui, sans-serif;
+  --font-body: "Golos Text", system-ui, -apple-system, sans-serif;
+
+  /* макет */
+  --content-width: 768px;
+  /* нав-бар ширший за колонку контенту — з email + кнопкою
+     «Вийти» посилання вже не вміщуються у 768px */
+  --nav-width: 1040px;
+
+  /* тінь для карток (форма, список задач) */
+  --shadow-card: 0 18px 40px -22px rgba(4, 3, 14, 0.65);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* м'яке радіальне світло позаду вмісту */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(60% 40% at 50% 0%, var(--glow), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* тонка зерниста текстура для глибини */
+.noise {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  opacity: 0.05;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+a {
+  color: inherit;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Плавна поява вмісту сторінки при переході між вкладками
+   (запускається повторно з js/router.js — див. .page--enter
+   у css/page.css). */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

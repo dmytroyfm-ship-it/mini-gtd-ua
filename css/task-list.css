@@ -1,0 +1,160 @@
+/* Картка списку задач і порожній стан
+   (js/components/TaskList.js, js/components/TaskItem.js).
+   Кольори — лише з токенів у css/style.css. */
+
+.task-list-card {
+  margin-top: 1.25rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.task-list-card__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4rem 1.5rem;
+  text-align: center;
+}
+
+.task-list-card__empty-icon {
+  width: 76px;
+  height: 76px;
+  margin-bottom: 1.1rem;
+  color: var(--accent);
+  opacity: 0.22;
+  animation: rise 0.55s ease-out both;
+}
+
+.task-list-card__empty-title {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.2rem;
+  animation: rise 0.55s ease-out 0.1s both;
+}
+
+.task-list-card__empty-text {
+  margin: 0.4rem 0 0;
+  color: var(--ink-dim);
+  font-size: 0.92rem;
+  animation: rise 0.55s ease-out 0.2s both;
+}
+
+.task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.task-item:last-child {
+  border-bottom: none;
+}
+
+.task-item__checkbox {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 0.2rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.task-item__checkbox:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* Виконана задача — приглушена й перекреслена. */
+.task-item--completed {
+  opacity: 0.55;
+}
+
+.task-item--completed .task-item__title {
+  text-decoration: line-through;
+}
+
+.task-item__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.task-item__title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.task-item__note {
+  margin: 0.25rem 0 0;
+  color: var(--ink-dim);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.task-item__tags {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 auto;
+  max-width: 45%;
+}
+
+.task-item__tag {
+  padding: 0.15rem 0.6rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.task-item__delete {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.task-item__delete:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.task-item__delete:disabled {
+  opacity: 0.5;
+  cursor: default;
+  background: transparent;
+  color: var(--ink-dim);
+}
+
+.task-item__delete-icon {
+  width: 16px;
+  height: 16px;
+}

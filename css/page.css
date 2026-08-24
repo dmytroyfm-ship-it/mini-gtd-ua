@@ -1,0 +1,32 @@
+/* Спільні стилі для контенту сторінок (Вхідні, заглушки тощо).
+   Контент по центру, максимальна ширина 768px. */
+
+.page {
+  position: relative;
+  z-index: 2;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 3rem 1.25rem;
+}
+
+/* Клас перезапускає js/router.js при кожному переході між
+   вкладками — звідси плавна поява вмісту на кожному маршруті,
+   а не лише при першому завантаженні. */
+.page--enter {
+  animation: page-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.page__title {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  color: var(--ink);
+}
+
+.page__text {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: 1rem;
+  line-height: 1.6;
+}

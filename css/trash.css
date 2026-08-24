@@ -1,0 +1,92 @@
+/* Рядки кошика (js/components/TrashItem.js, TrashList.js).
+   Картка-обгортка — та сама .task-list-card з css/task-list.css.
+   Кольори — лише з токенів у css/style.css. */
+
+.trash-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.trash-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.trash-item:last-child {
+  border-bottom: none;
+}
+
+.trash-item__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.trash-item__title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.trash-item__note {
+  margin: 0.25rem 0 0;
+  color: var(--ink-dim);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.trash-item__actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.trash-item__restore,
+.trash-item__delete {
+  padding: 0.4rem 0.75rem;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.trash-item__restore {
+  color: var(--ink-dim);
+}
+
+.trash-item__restore:hover {
+  background: var(--bg-raised);
+  color: var(--ink);
+}
+
+.trash-item__delete {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+
+.trash-item__delete:hover {
+  background: var(--accent-soft);
+}
+
+.trash-item__restore:disabled,
+.trash-item__delete:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.trash-list__empty {
+  margin: 0;
+  padding: 2.75rem 1.5rem;
+  color: var(--ink-dim);
+  font-size: 0.95rem;
+  text-align: center;
+}
