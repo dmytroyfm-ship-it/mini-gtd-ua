@@ -1,20 +1,21 @@
 /* Дошка Kanban (js/pages/board.js). Ширша сторінка (.page--wide) —
-   шість колонок поруч не вміщуються у звичайні 768px контенту.
+   шести колонкам поруч тісно у звичайні 768px контенту.
    Кольори — лише з токенів у css/style.css. */
 
 .page--wide {
   max-width: var(--board-width);
 }
 
-/* На типових екранах усі 6 колонок все одно не вміщуються поруч —
-   тоді ряд просто займає всю ширину сторінки й прокручується
-   (overflow-x: auto). Але коли вміщуються (широкий монітор) —
-   fit-content + margin: auto стягує ряд до розміру колонок і
-   центрує його, а не розтягує на всю --board-width із порожнім
-   місцем праворуч. */
+/* Сітка 3×2: перші три статуси (Термінові / Не термінові /
+   Щоденні) зверху, решта три (Виконані / Скасовані / В очікуванні)
+   — рядком під ними. Порядок рядків визначає сам порядок колонок у
+   розмітці (js/pages/board.js), тут лише 3 колонки на ряд. Ширина
+   ряду — fit-content + margin: auto, тож сітка центрована, коли
+   вужча за сторінку, і сама прокручується (overflow-x: auto), коли
+   навіть три колонки поруч не влазять (вузькі екрани). */
 .board {
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(280px, 340px));
   gap: 1rem;
   width: fit-content;
   max-width: 100%;
@@ -24,9 +25,6 @@
 }
 
 .board-column {
-  flex: 1 1 300px;
-  min-width: 280px;
-  max-width: 340px;
   display: flex;
   flex-direction: column;
   background: var(--bg-soft);
@@ -101,7 +99,7 @@
 }
 
 @media (max-width: 640px) {
-  .board-column {
-    min-width: 260px;
+  .board {
+    grid-template-columns: repeat(3, minmax(260px, 340px));
   }
 }
