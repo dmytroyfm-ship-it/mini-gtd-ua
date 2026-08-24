@@ -34,11 +34,28 @@ export function renderTaskCard(task, handlers = {}) {
     onListChange,
     onDueDateChange,
     onAddTag,
+    draggable,
   } = handlers;
 
   const card = document.createElement("li");
   card.className = "task-card";
   if (task.completed) card.classList.add("task-card--completed");
+
+  // draggable — вмикається лише сторінкою, якій це треба (дошка
+  // /board); на «Вхідних»/«Задачах» handlers.draggable немає, і
+  // картка лишається звичайною, без перетягування.
+  if (draggable) {
+    card.draggable = true;
+    card.classList.add("task-card--draggable");
+    card.addEventListener("dragstart", (event) => {
+      event.dataTransfer.setData("text/plain", task.id);
+      event.dataTransfer.effectAllowed = "move";
+      card.classList.add("task-card--dragging");
+    });
+    card.addEventListener("dragend", () => {
+      card.classList.remove("task-card--dragging");
+    });
+  }
 
   const safeTitle = escapeHtml(task.title);
   const tagsHtml = (task.tags || [])

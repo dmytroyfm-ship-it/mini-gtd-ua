@@ -141,6 +141,15 @@ user_id`), але для INSERT/UPDATE є ще одна умова: `task_id` м
 («column ... does not exist») — вона коректно покажеться через
 `window.alert()`, застосунок не впаде.
 
+[supabase/migrations/20260824030000_add_status_to_tasks.sql](../supabase/migrations/20260824030000_add_status_to_tasks.sql)
+додає ще одну колонку — `status` (`urgent`/`not_urgent`/`daily`/
+`cancelled`/`waiting`, дефолт `not_urgent`). Це **окреме поле від
+`priority`** — свідоме рішення: `priority` лишається для dropdown
+«Пріоритет» у картці задачі (2 значення), `status` — тільки для
+колонок дошки `/board` (5 значень; «Виконані» на дошці — це
+`completed = true`, не значення `status`). Так само ще не виконано
+в реальній базі.
+
 Вхід через Google — редірект-флоу: клік по кнопці переносить
 браузер на `accounts.google.com`, а сесія з'являється вже після
 повернення на `/auth` (роутер сам побачить сесію й перенаправить
@@ -161,7 +170,8 @@ GTD додаток/
 │   ├── task-form.css              — стилі картки форми додавання задачі
 │   ├── task-list.css               — колонка карток задач / порожній стан
 │   ├── task-card.css                — сама картка задачі + вкладені підзадачі
-│   └── trash.css                    — стилі рядків кошика (кнопки дій)
+│   ├── trash.css                    — стилі рядків кошика (кнопки дій)
+│   └── board.css                     — дошка Kanban (.page--wide, колонки, drag-over)
 ├── js/
 │   ├── app.js                 — точка входу: чекає initAuth(), монтує навігацію й роутер
 │   ├── router.js               — маршрути, доступ, History API, рендер сторінок
@@ -173,7 +183,8 @@ GTD додаток/
 │   │   │                             setTaskCompleted, moveTaskToTrash,
 │   │   │                             getTrashedTasks, restoreTask,
 │   │   │                             deleteTaskPermanently, setTaskPriority,
-│   │   │                             setTaskList, setTaskDueDate, setTaskTags)
+│   │   │                             setTaskList, setTaskDueDate, setTaskTags,
+│   │   │                             setTaskStatus, getAllTasks)
 │   │   │                             + JSDoc-тип Task
 │   │   ├── subtaskStore.js         — підзадачі (getSubtasks, addSubtask,
 │   │   │                             setSubtaskCompleted, deleteSubtask)
@@ -193,6 +204,7 @@ GTD додаток/
 │       ├── auth.js              — сторінка логіну (/auth)
 │       ├── inbox.js             — сторінка «Вхідні» (форма + список карток)
 │       ├── next.js              — сторінка «Задачі» (/list/next, без форми)
+│       ├── board.js             — дошка Kanban (/board): колонки, drag-and-drop
 │       ├── trash.js             — сторінка «Кошик» (/trash)
 │       └── stub.js               — спільний рендер сторінок-заглушок
 │                                    (лишились: Читати/Дивитись, Колись, Архів)
@@ -206,8 +218,10 @@ GTD додаток/
 │       │                          — схема subtasks + materials + RLS
 │       │                             (subtasks виконано; materials — теж виконано,
 │       │                             UI ще нема)
-│       └── 20260824020000_add_priority_and_due_date_to_tasks.sql
-│                                  — priority + due_date для tasks (ще не виконано)
+│       ├── 20260824020000_add_priority_and_due_date_to_tasks.sql
+│       │                          — priority + due_date для tasks (ще не виконано)
+│       └── 20260824030000_add_status_to_tasks.sql
+│                                  — status для tasks / дошка Kanban (ще не виконано)
 ├── docs/
 │   ├── PRD.md                    — опис продукту
 │   └── ARCHITECTURE.md           — цей документ
@@ -294,6 +308,7 @@ Supabase SDK).
 | `/auth`                | Вхід                   | лише неавторизованим | картка логіну через Google (Supabase Auth) |
 | `/inbox`               | Вхідні                 | лише авторизованим | форма + список із реальної бази |
 | `/list/next`           | Задачі                 | лише авторизованим | список із реальної бази (без форми додавання) |
+| `/board`                | Дошка                  | лише авторизованим | Kanban: усі активні задачі колонками, drag-and-drop |
 | `/list/read_watch`     | Читати / Дивитись      | лише авторизованим | заглушка |
 | `/list/someday`        | Колись                 | лише авторизованим | заглушка |
 | `/list/archive`        | Архів                  | лише авторизованим | заглушка |
@@ -303,6 +318,21 @@ Supabase SDK).
 залежно від сесії. Пункти меню генеруються з цієї ж таблиці
 маршрутів (`getRoutes()` у `router.js`, лише захищені) — щоб не
 тримати список посилань окремо у навігації й окремо в роутері.
+
+`/board` — єдиний маршрут із `wide: true`: сторінка отримує клас
+`.page--wide` (ширший контент, `--board-width: 1400px`, замість
+звичайних 768px) — кільком колонкам поруч тісно в стандартній
+ширині сторінки. [js/pages/board.js](../js/pages/board.js) бере
+всі активні задачі одним запитом (`getAllTasks()`) і сам розкладає
+їх по колонках за одним правилом (`bucketOf`): `completed` → 
+«Виконані», інакше `status` напряму («Термінові» / «Не термінові»
+/ «Щоденні» / «Скасовані» / «В очікуванні») — кожна задача завжди
+рівно в одній колонці. Перетягування — нативний HTML5 drag-and-drop
+(`draggable`, `dragstart`/`dragover`/`drop`), без бібліотек; працює
+мишкою на десктопі, сенсорні жести не підтримані (як і просили —
+«перетягувати мишкою»). Картки на дошці — ті самі `TaskCard.js`,
+що й на «Вхідних»/«Задачах» (`handlers.draggable: true` вмикає
+перетягування лише там, де це потрібно).
 
 Захист маршрутів — у `renderCurrentRoute()`: захищений маршрут без
 сесії редіректить на `/auth`; `/auth` із активною сесією редіректить
@@ -362,6 +392,11 @@ Supabase SDK).
   `20260824020000_add_priority_and_due_date_to_tasks.sql` ще не
   виконана в реальній базі — до того часу зміна цих двох полів
   повертатиме помилку бази (розділ 1).
+- **Дошка `/board`** — код повністю готовий (сторінка, колонки,
+  drag-and-drop), але міграція `20260824030000_add_status_to_tasks.sql`
+  теж іще не виконана — до того часу перетягування картки в іншу
+  колонку повертатиме помилку бази (сам список задач на дошці й
+  порожні колонки показуються нормально).
 - **Сторінки `/list/someday`, `/list/read_watch`, `/list/archive`**
   — досі заглушки (`/list/next` уже показує реальний список, за тим
   же принципом можна повторити для решти трьох). Dropdown «Список»

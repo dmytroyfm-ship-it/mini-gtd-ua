@@ -6,6 +6,7 @@
 
 import { renderInbox } from "./pages/inbox.js";
 import { renderNext } from "./pages/next.js";
+import { renderBoard } from "./pages/board.js";
 import { renderTrash } from "./pages/trash.js";
 import { renderStub } from "./pages/stub.js";
 import { renderAuth } from "./pages/auth.js";
@@ -18,6 +19,7 @@ const ROUTES = [
   { path: "/auth", title: "Вхід", render: renderAuth, protected: false, bare: true },
   { path: "/inbox", title: "Вхідні", render: renderInbox, protected: true },
   { path: "/list/next", title: "Задачі", render: renderNext, protected: true },
+  { path: "/board", title: "Дошка", render: renderBoard, protected: true, wide: true },
   { path: "/list/read_watch", title: "Читати / Дивитись", render: (root) => renderStub(root, "Читати / Дивитись"), protected: true },
   { path: "/list/someday", title: "Колись", render: (root) => renderStub(root, "Колись"), protected: true },
   { path: "/list/archive", title: "Архів", render: (root) => renderStub(root, "Архів"), protected: true },
@@ -73,7 +75,9 @@ async function renderCurrentRoute() {
   }
 
   document.title = `${route.title} — Mini GTD UA`;
-  pageRoot.className = route.bare ? "page page--auth" : "page";
+  pageRoot.className = ["page", route.bare && "page--auth", route.wide && "page--wide"]
+    .filter(Boolean)
+    .join(" ");
   await route.render(pageRoot);
   playEnterTransition(pageRoot);
 

@@ -16,6 +16,7 @@
 // @property {string[]} tags
 // @property {boolean} completed
 // @property {"urgent"|"normal"} priority
+// @property {"urgent"|"not_urgent"|"daily"|"cancelled"|"waiting"} status
 // @property {string|null} due_date
 // @property {string|null} deleted_at
 // @property {string} created_at
@@ -30,6 +31,19 @@ export async function getTasks(list) {
     .from("tasks")
     .select("*")
     .eq("list", list)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data;
+}
+
+// Усі активні задачі користувача, незалежно від list — для дошки
+// (/board), яка сама розкладає їх по колонках за status/completed.
+export async function getAllTasks() {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
@@ -64,6 +78,14 @@ export async function setTaskCompleted(id, completed) {
 
 export async function setTaskPriority(id, priority) {
   const { error } = await supabase.from("tasks").update({ priority }).eq("id", id);
+
+  if (error) throw error;
+}
+
+// Колонка дошки (/board) — окреме поле від priority. Викликається
+// при перетягуванні картки в іншу колонку.
+export async function setTaskStatus(id, status) {
+  const { error } = await supabase.from("tasks").update({ status }).eq("id", id);
 
   if (error) throw error;
 }
