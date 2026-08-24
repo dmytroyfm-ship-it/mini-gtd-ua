@@ -44,11 +44,23 @@ function bucketOf(task) {
 }
 
 export async function renderBoard(root) {
-  root.innerHTML = `<h1 class="page__title">Дошка</h1>`;
+  // Заголовок і сітка колонок — в одній обгортці (.board-page), яка
+  // сама стягується до ширини сітки й центрується в межах
+  // .page--wide (див. css/board.css). Без цього «Дошка» лишалась би
+  // притиснутою до лівого краю широкої сторінки, тоді як сітка
+  // колонок під нею — по центру: заголовок не збігався б із
+  // «Термінові», як на решті вкладок.
+  root.innerHTML = `
+    <div class="board-page">
+      <h1 class="page__title">Дошка</h1>
+    </div>
+  `;
+
+  const boardPage = root.querySelector(".board-page");
 
   const boardEl = document.createElement("div");
   boardEl.className = "board";
-  root.appendChild(boardEl);
+  boardPage.appendChild(boardEl);
 
   const cardHandlers = {
     onToggleCompleted: handleToggleCompleted,
