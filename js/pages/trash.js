@@ -25,7 +25,7 @@ export async function renderTrash(root) {
     } catch (err) {
       nextEl = document.createElement("p");
       nextEl.className = "page__text";
-      nextEl.textContent = err instanceof Error ? err.message : "Не вдалося завантажити кошик.";
+      nextEl.textContent = err?.message || "Не вдалося завантажити кошик.";
     }
 
     listSlot.replaceWith(nextEl);

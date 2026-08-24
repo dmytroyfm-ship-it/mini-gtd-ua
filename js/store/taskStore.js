@@ -15,6 +15,8 @@
 // @property {"inbox"|"next"|"read_watch"|"someday"|"archive"} list
 // @property {string[]} tags
 // @property {boolean} completed
+// @property {"urgent"|"normal"} priority
+// @property {string|null} due_date
 // @property {string|null} deleted_at
 // @property {string} created_at
 // @property {string} updated_at
@@ -56,6 +58,35 @@ export async function addTask(values) {
 
 export async function setTaskCompleted(id, completed) {
   const { error } = await supabase.from("tasks").update({ completed }).eq("id", id);
+
+  if (error) throw error;
+}
+
+export async function setTaskPriority(id, priority) {
+  const { error } = await supabase.from("tasks").update({ priority }).eq("id", id);
+
+  if (error) throw error;
+}
+
+// Зміна списку (dropdown у картці задачі) — та сама колонка list,
+// що визначає, у якому зі списків («Вхідні», «Задачі» тощо) задача
+// зʼявляється; getTasks(list) фільтрує саме за нею.
+export async function setTaskList(id, list) {
+  const { error } = await supabase.from("tasks").update({ list }).eq("id", id);
+
+  if (error) throw error;
+}
+
+// dueDate: "YYYY-MM-DD" або null, щоб прибрати дедлайн.
+export async function setTaskDueDate(id, dueDate) {
+  const { error } = await supabase.from("tasks").update({ due_date: dueDate }).eq("id", id);
+
+  if (error) throw error;
+}
+
+// tags — повний новий масив (картка сама рахує [...task.tags, новий]).
+export async function setTaskTags(id, tags) {
+  const { error } = await supabase.from("tasks").update({ tags }).eq("id", id);
 
   if (error) throw error;
 }

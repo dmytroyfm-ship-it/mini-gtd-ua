@@ -46,7 +46,7 @@ export function renderAuthCard(onSignIn, initialError) {
     try {
       await onSignIn();
     } catch (err) {
-      error.textContent = err instanceof Error ? err.message : "Не вдалося увійти. Спробуйте ще раз.";
+      error.textContent = err?.message || "Не вдалося увійти. Спробуйте ще раз.";
       error.hidden = false;
       button.disabled = false;
       label.textContent = "Увійти через Google";

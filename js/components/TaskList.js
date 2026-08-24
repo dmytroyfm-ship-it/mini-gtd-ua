@@ -1,14 +1,13 @@
-// Список задач: картка з рядками задач або порожній стан, якщо
-// задач немає.
+// Список задач: колонка повних карток (TaskCard.js) або порожній
+// стан, якщо задач немає.
 
-import { renderTaskItem } from "./TaskItem.js";
+import { renderTaskCard } from "./TaskCard.js";
 
 export function renderTaskList(tasks, handlers) {
-  const card = document.createElement("div");
-  card.className = "task-list-card";
-
   if (tasks.length === 0) {
-    card.innerHTML = `
+    const empty = document.createElement("div");
+    empty.className = "task-list-card";
+    empty.innerHTML = `
       <div class="task-list-card__empty">
         <svg class="task-list-card__empty-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
           <circle cx="32" cy="32" r="29" stroke="currentColor" stroke-width="3" />
@@ -18,16 +17,15 @@ export function renderTaskList(tasks, handlers) {
         <p class="task-list-card__empty-text">Додайте першу задачу формою вище ☝️</p>
       </div>
     `;
-    return card;
+    return empty;
   }
 
   const list = document.createElement("ul");
-  list.className = "task-list";
+  list.className = "task-card-list";
 
   tasks.forEach((task) => {
-    list.appendChild(renderTaskItem(task, handlers));
+    list.appendChild(renderTaskCard(task, handlers));
   });
 
-  card.appendChild(list);
-  return card;
+  return list;
 }

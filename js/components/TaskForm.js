@@ -52,7 +52,7 @@ export function renderTaskForm(onSubmit) {
       titleInput.value = "";
       noteInput.value = "";
     } catch (err) {
-      error.textContent = err instanceof Error ? err.message : "Не вдалося зберегти задачу. Спробуйте ще раз.";
+      error.textContent = err?.message || "Не вдалося зберегти задачу. Спробуйте ще раз.";
       error.hidden = false;
     } finally {
       submitButton.disabled = false;
