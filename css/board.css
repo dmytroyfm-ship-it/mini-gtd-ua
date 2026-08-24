@@ -1,18 +1,17 @@
 /* Дошка Kanban (js/pages/board.js). Ширша сторінка (.page--wide) —
-   кілька колонок поруч не вміщуються у звичайні 768px контенту.
+   шість колонок поруч не вміщуються у звичайні 768px контенту.
    Кольори — лише з токенів у css/style.css. */
 
 .page--wide {
   max-width: var(--board-width);
 }
 
-/* Колонок за замовчуванням лише три — вони зазвичай вужчі за
-   .page--wide (потрібен більший запас для випадку, коли показані
-   й приховані статуси). Без цього ряд колонок притискався б до
-   лівого краю широкої сторінки, а не стояв по центру, як усе інше
-   (fit-content + margin: auto — той самий трюк, що центрує колонки,
-   коли вони вужчі за сторінку, і сам відступає вбік, не заважаючи
-   overflow-x: auto, коли колонок стає забагато й вони не влазять). */
+/* На типових екранах усі 6 колонок все одно не вміщуються поруч —
+   тоді ряд просто займає всю ширину сторінки й прокручується
+   (overflow-x: auto). Але коли вміщуються (широкий монітор) —
+   fit-content + margin: auto стягує ряд до розміру колонок і
+   центрує його, а не розтягує на всю --board-width із порожнім
+   місцем праворуч. */
 .board {
   display: flex;
   align-items: flex-start;
@@ -22,33 +21,6 @@
   margin: 1.5rem auto 0;
   overflow-x: auto;
   padding-bottom: 0.5rem;
-}
-
-.board--hidden {
-  margin-top: 1rem;
-}
-
-.board--hidden[hidden] {
-  display: none;
-}
-
-.board-hidden-toggle {
-  margin-top: 1.5rem;
-  padding: 0.5rem 0.9rem;
-  background: transparent;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--ink-dim);
-  font-family: var(--font-body);
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.board-hidden-toggle:hover {
-  background: var(--bg-raised);
-  color: var(--ink);
 }
 
 .board-column {

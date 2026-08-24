@@ -1,11 +1,10 @@
 // Дошка Kanban (/board): усі активні задачі користувача (без
-// видалених), розкладені по колонках — три видимі («Термінові»,
-// «Не термінові», «Щоденні») і три приховані під спойлером
-// («Виконані», «Скасовані», «В очікуванні»). Перетягування картки
-// в іншу колонку одразу оновлює status (нативний HTML5 drag-and-
-// drop — без бібліотек). Той самий status керується і dropdown
-// «Статус» прямо в картці (TaskCard.js) — де завгодно змінили,
-// синхронізовано скрізь, бо це одне й те саме поле в базі.
+// видалених), розкладені по шести колонках статусів — усі одразу,
+// без спойлера. Перетягування картки в іншу колонку одразу оновлює
+// status (нативний HTML5 drag-and-drop — без бібліотек). Той самий
+// status керується і dropdown «Статус» прямо в картці
+// (TaskCard.js) — де завгодно змінили, синхронізовано скрізь, бо
+// це одне й те саме поле в базі.
 //
 // Розподіл задачі по колонці — одне правило (bucketOf нижче), щоб
 // кожна задача завжди належала рівно одній колонці:
@@ -26,13 +25,10 @@ import {
 } from "../store/taskStore.js";
 import { renderTaskList } from "../components/TaskList.js";
 
-const VISIBLE_COLUMNS = [
+const COLUMNS = [
   { key: "urgent", title: "Термінові" },
   { key: "not_urgent", title: "Не термінові" },
   { key: "daily", title: "Щоденні" },
-];
-
-const HIDDEN_COLUMNS = [
   { key: "done", title: "Виконані" },
   { key: "cancelled", title: "Скасовані" },
   { key: "waiting", title: "В очікуванні" },
@@ -54,24 +50,6 @@ export async function renderBoard(root) {
   boardEl.className = "board";
   root.appendChild(boardEl);
 
-  const hiddenToggle = document.createElement("button");
-  hiddenToggle.type = "button";
-  hiddenToggle.className = "board-hidden-toggle";
-  hiddenToggle.textContent = "Показати приховані статуси";
-  root.appendChild(hiddenToggle);
-
-  const hiddenBoardEl = document.createElement("div");
-  hiddenBoardEl.className = "board board--hidden";
-  hiddenBoardEl.hidden = true;
-  root.appendChild(hiddenBoardEl);
-
-  hiddenToggle.addEventListener("click", () => {
-    hiddenBoardEl.hidden = !hiddenBoardEl.hidden;
-    hiddenToggle.textContent = hiddenBoardEl.hidden
-      ? "Показати приховані статуси"
-      : "Сховати приховані статуси";
-  });
-
   const cardHandlers = {
     onToggleCompleted: handleToggleCompleted,
     onDelete: handleDelete,
@@ -90,7 +68,6 @@ export async function renderBoard(root) {
     } catch (err) {
       console.error(err);
       boardEl.innerHTML = "";
-      hiddenBoardEl.innerHTML = "";
       const error = document.createElement("p");
       error.className = "page__text";
       error.textContent = "Не вдалося завантажити задачі. Спробуйте оновити сторінку.";
@@ -101,14 +78,13 @@ export async function renderBoard(root) {
     const buckets = { urgent: [], not_urgent: [], daily: [], done: [], cancelled: [], waiting: [] };
     tasks.forEach((task) => buckets[bucketOf(task)].push(task));
 
-    renderColumns(boardEl, VISIBLE_COLUMNS, buckets);
-    renderColumns(hiddenBoardEl, HIDDEN_COLUMNS, buckets);
+    renderColumns(buckets);
   }
 
-  function renderColumns(container, columns, buckets) {
-    container.innerHTML = "";
+  function renderColumns(buckets) {
+    boardEl.innerHTML = "";
 
-    columns.forEach((col) => {
+    COLUMNS.forEach((col) => {
       const columnEl = document.createElement("div");
       columnEl.className = "board-column";
 
@@ -139,7 +115,7 @@ export async function renderBoard(root) {
         if (taskId) handleDrop(taskId, col.key);
       });
 
-      container.appendChild(columnEl);
+      boardEl.appendChild(columnEl);
     });
   }
 
