@@ -296,3 +296,29 @@ Supabase SDK).
 
 Ці пункти зникають зі списку в міру реалізації — і цей документ
 оновлюється в тому ж кроці.
+
+## 6. Розгортання
+
+Застосунок опубліковано: **https://ephemeral-daffodil-8d52cc.netlify.app**
+
+- **Код** — [github.com/dmytroyfm-ship-it/mini-gtd-ua](https://github.com/dmytroyfm-ship-it/mini-gtd-ua),
+  гілка `main`.
+- **Хостинг** — Netlify, підключений напряму до цього репозиторію:
+  кожен `git push` у `main` автоматично перезбирає й публікує сайт
+  наново (нічого вручну заливати не треба). Білд-команди немає —
+  сайт статичний; [netlify.toml](../netlify.toml) лише вказує
+  Netlify віддавати `index.html` для будь-якого шляху (той самий
+  SPA-fallback принцип, що й у `scripts/serve.py` для локальної
+  розробки — без цього пряме відкриття `/list/next` на проді
+  повернуло б 404).
+- **Google Cloud Console** і **Supabase Auth → URL Configuration**
+  налаштовані на цей домен (додатково до `localhost:4173` — обидва
+  лишаються дозволеними, тож локальна розробка й далі працює).
+
+> **Google OAuth consent screen — режим Testing.** Увійти можуть
+> лише акаунти, вручну додані як test users (Google Cloud Console →
+> OAuth consent screen → Test users). Це свідомо: застосунок ще
+> допрацьовується, посилання поки не для публічного анонсу. Перед
+> тим, як ділитись посиланням із кимось новим — спершу додай його
+> Google-акаунт у test users, інакше він отримає помилку доступу
+> від Google.
