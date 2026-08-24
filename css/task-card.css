@@ -176,7 +176,7 @@
   text-transform: uppercase;
 }
 
-.task-card__priority,
+.task-card__status,
 .task-card__list {
   width: 100%;
   padding: 0.45rem 0.6rem;
@@ -189,13 +189,13 @@
   cursor: pointer;
 }
 
-.task-card__priority:disabled,
+.task-card__status:disabled,
 .task-card__list:disabled {
   opacity: 0.6;
   cursor: default;
 }
 
-.task-card__priority:focus,
+.task-card__status:focus,
 .task-card__list:focus {
   outline: none;
   border-color: var(--accent-dim);

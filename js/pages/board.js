@@ -3,7 +3,9 @@
 // «Не термінові», «Щоденні») і три приховані під спойлером
 // («Виконані», «Скасовані», «В очікуванні»). Перетягування картки
 // в іншу колонку одразу оновлює status (нативний HTML5 drag-and-
-// drop — без бібліотек).
+// drop — без бібліотек). Той самий status керується і dropdown
+// «Статус» прямо в картці (TaskCard.js) — де завгодно змінили,
+// синхронізовано скрізь, бо це одне й те саме поле в базі.
 //
 // Розподіл задачі по колонці — одне правило (bucketOf нижче), щоб
 // кожна задача завжди належала рівно одній колонці:
@@ -18,7 +20,6 @@ import {
   setTaskStatus,
   setTaskCompleted,
   moveTaskToTrash,
-  setTaskPriority,
   setTaskList,
   setTaskDueDate,
   setTaskTags,
@@ -74,7 +75,7 @@ export async function renderBoard(root) {
   const cardHandlers = {
     onToggleCompleted: handleToggleCompleted,
     onDelete: handleDelete,
-    onPriorityChange: handlePriorityChange,
+    onStatusChange: handleStatusChange,
     onListChange: handleListChange,
     onDueDateChange: handleDueDateChange,
     onAddTag: handleAddTag,
@@ -141,17 +142,25 @@ export async function renderBoard(root) {
     });
   }
 
+  // Спільна логіка переходу в колонку — і для drag-and-drop, і для
+  // dropdown «Статус» у самій картці (та сама дія, два способи її
+  // викликати; картка ніколи не передає "done" — там немає такого
+  // пункту, є лише окремий чекбокс «виконано»).
+  async function moveTaskToColumn(taskId, columnKey) {
+    if (columnKey === "done") {
+      await setTaskCompleted(taskId, true);
+    } else {
+      // Перетягнута/перемкнута назад із «Виконаних» задача має
+      // реально покинути цю колонку — bucketOf() інакше й далі
+      // вважав би її виконаною незалежно від status.
+      await setTaskCompleted(taskId, false);
+      await setTaskStatus(taskId, columnKey);
+    }
+  }
+
   async function handleDrop(taskId, columnKey) {
     try {
-      if (columnKey === "done") {
-        await setTaskCompleted(taskId, true);
-      } else {
-        // Перетягнута назад із «Виконаних» задача має реально
-        // покинути цю колонку — bucketOf() інакше й далі вважав би
-        // її виконаною незалежно від status.
-        await setTaskCompleted(taskId, false);
-        await setTaskStatus(taskId, columnKey);
-      }
+      await moveTaskToColumn(taskId, columnKey);
       await refreshBoard();
     } catch (err) {
       window.alert(err?.message || "Не вдалося перемістити задачу.");
@@ -168,8 +177,8 @@ export async function renderBoard(root) {
     await refreshBoard();
   }
 
-  async function handlePriorityChange(task, priority) {
-    await setTaskPriority(task.id, priority);
+  async function handleStatusChange(task, status) {
+    await moveTaskToColumn(task.id, status);
     await refreshBoard();
   }
 

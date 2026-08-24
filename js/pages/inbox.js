@@ -10,7 +10,7 @@ import {
   addTask,
   setTaskCompleted,
   moveTaskToTrash,
-  setTaskPriority,
+  setTaskStatus,
   setTaskList,
   setTaskDueDate,
   setTaskTags,
@@ -36,7 +36,7 @@ export async function renderInbox(root) {
       nextEl = renderTaskList(tasks, {
         onToggleCompleted: handleToggleCompleted,
         onDelete: handleDelete,
-        onPriorityChange: handlePriorityChange,
+        onStatusChange: handleStatusChange,
         onListChange: handleListChange,
         onDueDateChange: handleDueDateChange,
         onAddTag: handleAddTag,
@@ -66,8 +66,12 @@ export async function renderInbox(root) {
     await refreshList();
   }
 
-  async function handlePriorityChange(task, priority) {
-    await setTaskPriority(task.id, priority);
+  async function handleStatusChange(task, status) {
+    // Синхронізовано з дошкою (/board) — та сама логіка, що й у
+    // board.js: зміна статусу знімає позначку «виконано», інакше
+    // задача лишалась би застряглою серед виконаних на дошці.
+    await setTaskCompleted(task.id, false);
+    await setTaskStatus(task.id, status);
     await refreshList();
   }
 

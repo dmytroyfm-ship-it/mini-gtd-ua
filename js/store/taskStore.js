@@ -15,7 +15,6 @@
 // @property {"inbox"|"next"|"read_watch"|"someday"|"archive"} list
 // @property {string[]} tags
 // @property {boolean} completed
-// @property {"urgent"|"normal"} priority
 // @property {"urgent"|"not_urgent"|"daily"|"cancelled"|"waiting"} status
 // @property {string|null} due_date
 // @property {string|null} deleted_at
@@ -76,14 +75,9 @@ export async function setTaskCompleted(id, completed) {
   if (error) throw error;
 }
 
-export async function setTaskPriority(id, priority) {
-  const { error } = await supabase.from("tasks").update({ priority }).eq("id", id);
-
-  if (error) throw error;
-}
-
-// Колонка дошки (/board) — окреме поле від priority. Викликається
-// при перетягуванні картки в іншу колонку.
+// Статус — той самий dropdown у картці задачі й ті самі колонки
+// дошки /board (drag-and-drop туди теж викликає цю функцію) —
+// єдине поле, єдине джерело правди для обох місць.
 export async function setTaskStatus(id, status) {
   const { error } = await supabase.from("tasks").update({ status }).eq("id", id);
 

@@ -7,7 +7,7 @@ import {
   getTasks,
   setTaskCompleted,
   moveTaskToTrash,
-  setTaskPriority,
+  setTaskStatus,
   setTaskList,
   setTaskDueDate,
   setTaskTags,
@@ -32,7 +32,7 @@ export async function renderNext(root) {
         {
           onToggleCompleted: handleToggleCompleted,
           onDelete: handleDelete,
-          onPriorityChange: handlePriorityChange,
+          onStatusChange: handleStatusChange,
           onListChange: handleListChange,
           onDueDateChange: handleDueDateChange,
           onAddTag: handleAddTag,
@@ -59,8 +59,9 @@ export async function renderNext(root) {
     await refreshList();
   }
 
-  async function handlePriorityChange(task, priority) {
-    await setTaskPriority(task.id, priority);
+  async function handleStatusChange(task, status) {
+    await setTaskCompleted(task.id, false);
+    await setTaskStatus(task.id, status);
     await refreshList();
   }
 

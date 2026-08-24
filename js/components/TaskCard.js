@@ -1,15 +1,19 @@
 // Повна картка задачі — «пульт керування»: назва, чекбокс
-// «виконано», кошик, теги (+ додати), пріоритет і список
-// (dropdown — зміна списку одразу переносить задачу), дедлайн
-// (date picker + очистити), підзадачі.
+// «виконано», кошик, теги (+ додати), статус і список (dropdown —
+// зміна списку одразу переносить задачу), дедлайн (date picker +
+// очистити), підзадачі.
 //
-// Мутації самої задачі (тег/пріоритет/список/дедлайн/виконано/
-// кошик) віддаються нагору через handlers — той самий підхід, що
-// вже є в pages/inbox.js (виклик функції стору → перемальовування
-// списку). Підзадачі — виняток: керуються прямо тут, без
-// перемальовування решти картки, бо не впливають на те, які задачі
-// показані у списку (PROJECT_RULES, п.6 — бізнес-логіка в store,
-// не тут).
+// Dropdown «Статус» керує тим самим полем status, що й колонки
+// дошки /board (drag-and-drop) — це навмисно один і той самий
+// dropdown-набір, синхронізований через єдине джерело правди в
+// базі: зміна тут одразу відображається на дошці, і навпаки.
+//
+// Мутації самої задачі (тег/статус/список/дедлайн/виконано/кошик)
+// віддаються нагору через handlers — той самий підхід, що вже є в
+// pages/inbox.js (виклик функції стору → перемальовування списку).
+// Підзадачі — виняток: керуються прямо тут, без перемальовування
+// решти картки, бо не впливають на те, які задачі показані у
+// списку (PROJECT_RULES, п.6 — бізнес-логіка в store, не тут).
 
 import { getSubtasks, addSubtask, setSubtaskCompleted, deleteSubtask } from "../store/subtaskStore.js";
 import { renderSubtaskList } from "./SubtaskList.js";
@@ -30,7 +34,7 @@ export function renderTaskCard(task, handlers = {}) {
   const {
     onToggleCompleted,
     onDelete,
-    onPriorityChange,
+    onStatusChange,
     onListChange,
     onDueDateChange,
     onAddTag,
@@ -86,10 +90,13 @@ export function renderTaskCard(task, handlers = {}) {
 
     <div class="task-card__controls">
       <label class="task-card__field">
-        <span class="task-card__field-label">Пріоритет</span>
-        <select class="task-card__priority">
-          <option value="normal">Звичайні</option>
+        <span class="task-card__field-label">Статус</span>
+        <select class="task-card__status">
           <option value="urgent">Термінові</option>
+          <option value="not_urgent">Не термінові</option>
+          <option value="daily">Щоденні</option>
+          <option value="cancelled">Скасовані</option>
+          <option value="waiting">В очікуванні</option>
         </select>
       </label>
       <label class="task-card__field">
@@ -118,12 +125,12 @@ export function renderTaskCard(task, handlers = {}) {
 
   // Значення <select> виставляються властивістю, не HTML-атрибутом
   // на <option> — так гарантовано підсвічується поточна опція.
-  card.querySelector(".task-card__priority").value = task.priority || "normal";
+  card.querySelector(".task-card__status").value = task.status || "not_urgent";
   card.querySelector(".task-card__list").value = task.list;
 
   wireCompletedCheckbox(card, task, onToggleCompleted);
   wireTrashButton(card, task, onDelete);
-  wirePrioritySelect(card, task, onPriorityChange);
+  wireStatusSelect(card, task, onStatusChange);
   wireListSelect(card, task, onListChange);
   wireDueDate(card, task, onDueDateChange);
   wireAddTag(card, task, onAddTag);
@@ -169,20 +176,20 @@ function wireTrashButton(card, task, onDelete) {
   });
 }
 
-function wirePrioritySelect(card, task, onPriorityChange) {
-  const select = card.querySelector(".task-card__priority");
+function wireStatusSelect(card, task, onStatusChange) {
+  const select = card.querySelector(".task-card__status");
 
   select.addEventListener("change", async () => {
-    if (!onPriorityChange) return;
+    if (!onStatusChange) return;
 
     const value = select.value;
     select.disabled = true;
 
     try {
-      await onPriorityChange(task, value);
+      await onStatusChange(task, value);
     } catch (err) {
-      select.value = task.priority || "normal";
-      window.alert(err?.message || "Не вдалося змінити пріоритет.");
+      select.value = task.status || "not_urgent";
+      window.alert(err?.message || "Не вдалося змінити статус.");
     } finally {
       select.disabled = false;
     }
