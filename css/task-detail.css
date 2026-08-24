@@ -1,0 +1,167 @@
+/* Сторінка детального перегляду задачі (js/pages/taskDetail.js) —
+   кнопка "Назад" і блок "Матеріали". Сама картка задачі — та ж
+   .task-card з модифікатором --detail (css/task-card.css).
+   Кольори — лише з токенів у css/style.css. */
+
+.task-detail__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ink-dim);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.task-detail__back:hover {
+  color: var(--ink);
+}
+
+.task-detail__content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+
+/* --- блок "Матеріали" --- */
+
+.materials-block {
+  padding: 1.5rem 1.75rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow-card);
+}
+
+.materials-block__title {
+  margin: 0 0 1rem;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.materials-block__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.materials-block__add-button {
+  padding: 0.45rem 0.85rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.materials-block__add-button:hover {
+  background: var(--line);
+  border-color: var(--accent-dim);
+}
+
+.materials-block__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.materials-block__empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--ink-dim);
+  font-size: 0.9rem;
+}
+
+.material-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 0.85rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  transition: border-color 0.15s ease;
+}
+
+.material-card:hover {
+  border-color: var(--accent-dim);
+}
+
+.material-card__link {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.material-card__icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+}
+
+.material-card__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.material-card__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.material-card__link:hover .material-card__title {
+  text-decoration: underline;
+}
+
+.material-card__delete {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--ink-dim);
+  font-size: 0.72rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.material-card:hover .material-card__delete,
+.material-card__delete:focus-visible {
+  opacity: 1;
+}
+
+.material-card__delete:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.material-card__delete:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

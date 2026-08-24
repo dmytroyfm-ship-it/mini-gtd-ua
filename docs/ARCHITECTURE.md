@@ -105,7 +105,7 @@ Supabase.
   фільтрацію самостійно; `getTasks("inbox")` сортує за `created_at`
   спаданням (найновіші зверху).
 
-### Підзадачі — підключено; матеріали й нові поля задачі — ще ні
+### Підзадачі й матеріали — підключено
 
 [supabase/migrations/20260824010000_create_subtasks_and_materials_tables.sql](../supabase/migrations/20260824010000_create_subtasks_and_materials_tables.sql)
 додає таблиці `subtasks` і `materials`, обидві з `task_id →
@@ -113,13 +113,28 @@ tasks(id) on delete cascade` (видалення задачі видаляє й 
 підзадачі/матеріали):
 
 - **`subtasks`** — підзадачі (Next Actions): `id`, `task_id`,
-  `user_id`, `title`, `completed`, `created_at`. **Підключено** —
+  `user_id`, `title`, `completed`, `created_at`, плюс `due_date` і
+  `tags` із третьої міграції нижче. Підключено —
   [js/store/subtaskStore.js](../js/store/subtaskStore.js)
   (`getSubtasks`, `addSubtask`, `setSubtaskCompleted`,
-  `deleteSubtask`) і UI в картці задачі (нижче).
+  `setSubtaskDueDate`, `setSubtaskTags`, `deleteSubtask`) і UI в
+  картці задачі та на сторінці `/task/:id` (розділ 3).
 - **`materials`** — прикріплені посилання/файли: `id`, `task_id`,
   `user_id`, `type` (`link`/`file`/`notion`/`gdrive`, з `check`),
-  `url`, `title`, `created_at`. Схема є, **UI ще не написаний**.
+  `url`, `title`, `created_at`. Підключено —
+  [js/store/materialStore.js](../js/store/materialStore.js)
+  (`getMaterials`, `addMaterial`, `deleteMaterial`) і блок
+  «Матеріали» на сторінці `/task/:id`. Реально працюють лише
+  URL-типи (`link`/`notion`/`gdrive`) — `file` у схемі є, але UI
+  його не створює: реальне завантаження файлів вимагає окремого
+  сховища (Supabase Storage), якого в проєкті ще немає (розділ 5).
+
+[supabase/migrations/20260824040000_add_due_date_and_tags_to_subtasks.sql](../supabase/migrations/20260824040000_add_due_date_and_tags_to_subtasks.sql)
+додає до `subtasks` `due_date` і `tags` — власний міні-дедлайн і
+міні-теги підзадачі, видно лише на сторінці `/task/:id`
+(`detailedSubtasks: true`); у компактних картках («Вхідні»,
+«Задачі», дошка) підзадача лишається простим чекліст-пунктом. Ще
+не виконано в реальній базі.
 
 RLS для обох — той самий принцип, що й у `tasks` (`auth.uid() =
 user_id`), але для INSERT/UPDATE є ще одна умова: `task_id` має
@@ -171,7 +186,8 @@ GTD додаток/
 │   ├── task-list.css               — колонка карток задач / порожній стан
 │   ├── task-card.css                — сама картка задачі + вкладені підзадачі
 │   ├── trash.css                    — стилі рядків кошика (кнопки дій)
-│   └── board.css                     — дошка Kanban (.page--wide, колонки, drag-over)
+│   ├── board.css                     — дошка Kanban (.page--wide, колонки, drag-over)
+│   └── task-detail.css                — /task/:id: «Назад», блок «Матеріали»
 ├── js/
 │   ├── app.js                 — точка входу: чекає initAuth(), монтує навігацію й роутер
 │   ├── router.js               — маршрути, доступ, History API, рендер сторінок
@@ -179,25 +195,31 @@ GTD додаток/
 │   ├── lib/
 │   │   └── supabaseClient.js      — єдиний клієнт Supabase (createClient)
 │   ├── store/
-│   │   ├── taskStore.js           — задачі через Supabase (getTasks, addTask,
-│   │   │                             setTaskCompleted, moveTaskToTrash,
-│   │   │                             getTrashedTasks, restoreTask,
-│   │   │                             deleteTaskPermanently, setTaskPriority,
-│   │   │                             setTaskList, setTaskDueDate, setTaskTags,
-│   │   │                             setTaskStatus, getAllTasks)
+│   │   ├── taskStore.js           — задачі через Supabase (getTaskById, getTasks,
+│   │   │                             getAllTasks, addTask, setTaskCompleted,
+│   │   │                             setTaskStatus, setTaskList, setTaskDueDate,
+│   │   │                             setTaskTags, moveTaskToTrash, getTrashedTasks,
+│   │   │                             restoreTask, deleteTaskPermanently)
 │   │   │                             + JSDoc-тип Task
 │   │   ├── subtaskStore.js         — підзадачі (getSubtasks, addSubtask,
-│   │   │                             setSubtaskCompleted, deleteSubtask)
+│   │   │                             setSubtaskCompleted, setSubtaskDueDate,
+│   │   │                             setSubtaskTags, deleteSubtask)
+│   │   ├── materialStore.js         — матеріали (getMaterials, addMaterial,
+│   │   │                             deleteMaterial)
 │   │   └── authStore.js            — сесія через Supabase Auth (getSession, signInWithGoogle, signOut)
 │   ├── components/
 │   │   ├── Nav.js                — навігація (меню, бургер, email, «Вийти»)
 │   │   ├── AuthCard.js             — картка логіну (кнопка Google, помилка)
 │   │   ├── TaskForm.js            — картка форми (стан збереження, помилка)
 │   │   ├── TaskList.js             — колонка карток задач / порожній стан
-│   │   ├── TaskCard.js              — картка задачі: теги, пріоритет/список,
-│   │   │                             дедлайн, підзадачі («пульт керування»)
+│   │   ├── TaskCard.js              — картка задачі: назва-посилання, теги,
+│   │   │                             статус/список, дедлайн, підзадачі
+│   │   │                             («пульт керування»; detail/detailedSubtasks
+│   │   │                             — більший масштаб для /task/:id)
 │   │   ├── SubtaskList.js            — список підзадач + форма додавання
-│   │   ├── SubtaskItem.js             — один рядок підзадачі
+│   │   ├── SubtaskItem.js             — один рядок підзадачі (+ міні-теги/дедлайн
+│   │   │                             у детальному режимі)
+│   │   ├── MaterialsBlock.js           — блок «Матеріали»: кнопки додавання + сітка
 │   │   ├── TrashList.js             — картка кошика / «Кошик порожній.»
 │   │   └── TrashItem.js              — рядок кошика («Відновити» / «Видалити назавжди»)
 │   └── pages/
@@ -205,6 +227,7 @@ GTD додаток/
 │       ├── inbox.js             — сторінка «Вхідні» (форма + список карток)
 │       ├── next.js              — сторінка «Задачі» (/list/next, без форми)
 │       ├── board.js             — дошка Kanban (/board): колонки, drag-and-drop
+│       ├── taskDetail.js         — детальний перегляд задачі (/task/:id)
 │       ├── trash.js             — сторінка «Кошик» (/trash)
 │       └── stub.js               — спільний рендер сторінок-заглушок
 │                                    (лишились: Читати/Дивитись, Колись, Архів)
@@ -215,13 +238,13 @@ GTD додаток/
 │       ├── 20260824000000_create_tasks_table.sql
 │       │                          — схема tasks + RLS (виконано на реальному проєкті)
 │       ├── 20260824010000_create_subtasks_and_materials_tables.sql
-│       │                          — схема subtasks + materials + RLS
-│       │                             (subtasks виконано; materials — теж виконано,
-│       │                             UI ще нема)
+│       │                          — схема subtasks + materials + RLS (виконано)
 │       ├── 20260824020000_add_priority_and_due_date_to_tasks.sql
 │       │                          — due_date (активний) + priority (незадіяний, ще не виконано)
-│       └── 20260824030000_add_status_to_tasks.sql
-│                                  — status: картка + дошка Kanban, спільне поле (ще не виконано)
+│       ├── 20260824030000_add_status_to_tasks.sql
+│       │                          — status: картка + дошка Kanban, спільне поле (ще не виконано)
+│       └── 20260824040000_add_due_date_and_tags_to_subtasks.sql
+│                                  — due_date + tags для subtasks, /task/:id (ще не виконано)
 ├── docs/
 │   ├── PRD.md                    — опис продукту
 │   └── ARCHITECTURE.md           — цей документ
@@ -233,55 +256,70 @@ GTD додаток/
 Кожен компонент і кожна сторінка — в окремому файлі (правило №3 з
 PROJECT_RULES): `Nav.js` не знає, як рендерити сторінки, сторінки
 не знають, як влаштована навігація, `router.js` лише зіставляє
-шлях із функцією рендеру. Так само на сторінці «Вхідні»:
-`TaskForm.js` (форма), `TaskList.js` (колонка карток/порожній
-стан) і `TaskCard.js` (сама картка) — окремі, незалежні
-компоненти; `pages/inbox.js` лише компонує їх і бере дані з
-`store/taskStore.js`. Підзадачі всередині картки — так само,
-окремо: `SubtaskList.js` (список + форма додавання) і
-`SubtaskItem.js` (один рядок).
+шлях із функцією рендеру. Так само на «Вхідних»/«Задачах»/дошці/
+`/task/:id`: `TaskForm.js` (форма додавання, лише на «Вхідних»),
+`TaskList.js` (колонка карток/порожній стан) і `TaskCard.js` (сама
+картка) — окремі, незалежні компоненти; сторінки лише компонують
+їх і беруть дані з `store/taskStore.js`. Підзадачі всередині
+картки — так само, окремо: `SubtaskList.js` (список + форма
+додавання) і `SubtaskItem.js` (один рядок). Матеріали на
+`/task/:id` — `MaterialsBlock.js`, сам вантажить свої дані з
+`store/materialStore.js` (той самий принцип, що й підзадачі в
+`TaskCard.js` — самодостатній блок, а не проштовхані згори дані).
 
-`js/store/taskStore.js` — уся логіка роботи з задачами: `getTasks`,
-`addTask`, `setTaskCompleted`, `moveTaskToTrash` (м'яке видалення —
-ставить `deleted_at`), `getTrashedTasks`, `restoreTask` (очищає
-`deleted_at`), `deleteTaskPermanently` (реальний SQL `DELETE`),
-`setTaskPriority`, `setTaskList` (переміщення між списками),
-`setTaskDueDate`, `setTaskTags` — усі `async`, бо це мережеві
-запити. `js/store/subtaskStore.js` — так само, але для `subtasks`
-(`getSubtasks`, `addSubtask`, `setSubtaskCompleted`,
-`deleteSubtask`). Це шар, окремий від UI-компонентів (правило №6):
-компоненти лише повідомляють про дію користувача через колбек
-(`onSubmit`, `onToggleCompleted`, `onDelete`, `onPriorityChange`,
-`onListChange`, `onDueDateChange`, `onAddTag`, `onToggle`,
-`onRestore`, `onDeleteForever` — залежно від компонента),
-сторінки/картка викликають відповідну функцію стору — самі
-компоненти нічого не знають про те, як і де щось зберігається.
+`js/store/taskStore.js` — уся логіка роботи з задачами: `getTaskById`
+(одна задача за id, для `/task/:id`), `getTasks`, `getAllTasks`
+(для дошки), `addTask`, `setTaskCompleted`, `setTaskStatus`,
+`setTaskList` (переміщення між списками), `setTaskDueDate`,
+`setTaskTags`, `moveTaskToTrash` (м'яке видалення — ставить
+`deleted_at`), `getTrashedTasks`, `restoreTask` (очищає
+`deleted_at`), `deleteTaskPermanently` (реальний SQL `DELETE`) —
+усі `async`, бо це мережеві запити. `js/store/subtaskStore.js` —
+так само, але для `subtasks` (`getSubtasks`, `addSubtask`,
+`setSubtaskCompleted`, `setSubtaskDueDate`, `setSubtaskTags`,
+`deleteSubtask`); `js/store/materialStore.js` — для `materials`
+(`getMaterials`, `addMaterial`, `deleteMaterial`). Це шар, окремий
+від UI-компонентів (правило №6): компоненти лише повідомляють про
+дію користувача через колбек (`onSubmit`, `onToggleCompleted`,
+`onDelete`, `onStatusChange`, `onListChange`, `onDueDateChange`,
+`onAddTag`, `onToggle`, `onRestore`, `onDeleteForever` — залежно
+від компонента), сторінки/картка викликають відповідну функцію
+стору — самі компоненти нічого не знають про те, як і де щось
+зберігається.
 
-**Дві різні моделі оновлення UI**, свідомо:
-- **Мутації самої задачі** (тег, пріоритет, список, дедлайн,
-  виконано, кошик) — `pages/inbox.js` перемальовує весь список
-  після кожної (той самий підхід, що вже був). Просто й надійно;
-  ціна — зайві мережеві запити (усі картки перезавантажують і свої
-  підзадачі), прийнятно для особистого застосунку з невеликою
-  кількістю задач.
+**Три різні моделі оновлення UI**, свідомо:
+- **Мутації самої задачі** (тег, статус, список, дедлайн, виконано,
+  кошик) — сторінка (`inbox.js`/`next.js`/`board.js`/`taskDetail.js`)
+  перечитує задачу(і) й перемальовує відповідний блок після кожної.
+  Просто й надійно; ціна — зайві мережеві запити (картки
+  перезавантажують і свої підзадачі), прийнятно для особистого
+  застосунку з невеликою кількістю задач.
 - **Підзадачі** — `TaskCard.js` сам вантажить і оновлює лише свій
-  розділ підзадач, без перемальовування картки чи списку: додавання
-  нової підзадачі — **Optimistic UI** (`SubtaskList.js`): рядок
-  з'являється в списку одразу, ще до відповіді бази; якщо
+  розділ підзадач, без перемальовування картки чи сторінки:
+  додавання нової підзадачі — **Optimistic UI** (`SubtaskList.js`):
+  рядок з'являється в списку одразу, ще до відповіді бази; якщо
   збереження вдалось — тимчасовий id рядка тихо підмінюється на
   справжній; якщо ні — рядок прибирається і показується помилка.
+  Зміна міні-тега/міні-дедлайна підзадачі (лише `/task/:id`) —
+  локальний DOM-патч усередині самого рядка (`SubtaskItem.js`), теж
+  без перемальовування картки.
+- **Матеріали** — так само самодостатній блок: `MaterialsBlock.js`
+  сам вантажить і перемальовує лише свою сітку після додавання чи
+  видалення.
 
-`pages/inbox.js` і `pages/trash.js` монтують форму/заголовок один
-раз; після кожної дії перемальовують лише список — решта сторінки
-не зникає й не втрачає стан. Поки список вантажиться — показують
+`pages/inbox.js`, `pages/next.js`, `pages/board.js`,
+`pages/taskDetail.js` і `pages/trash.js` монтують незмінну частину
+(форму/заголовок/кнопку «Назад») один раз; після кожної дії
+перемальовують лише сам список чи картку — решта сторінки не
+зникає й не втрачає стан. Поки дані вантажаться — показують
 «Завантаження…»; якщо запит не вдався — текст помилки замість
-списку, з **описом самої помилки Supabase**, а не загальним
+вмісту, з **описом самої помилки Supabase**, а не загальним
 написом (`err?.message`, не `err instanceof Error ? ... : ...` —
 об'єкти помилок Supabase не є справжніми `Error`, тож ця перевірка
 раніше завжди мовчки провалювалась і ховала реальний текст помилки
 скрізь у проєкті; виправлено в усіх місцях одночасно). Помилки при
 діях над одним рядком (відмітити / перемістити в кошик / відновити
-/ видалити назавжди / змінити пріоритет чи список / дедлайн / тег)
+/ видалити назавжди / змінити статус чи список / дедлайн / тег)
 показуються через `window.alert()` (мінімальний варіант, без
 окремого UI під кожен рядок); чекбокс «виконано» при невдачі
 додатково повертається в попередній стан. «Видалити назавжди» в
@@ -309,6 +347,7 @@ Supabase SDK).
 | `/inbox`               | Вхідні                 | лише авторизованим | форма + список із реальної бази |
 | `/list/next`           | Задачі                 | лише авторизованим | список із реальної бази (без форми додавання) |
 | `/board`                | Дошка                  | лише авторизованим | Kanban: усі активні задачі колонками, drag-and-drop |
+| `/task/:id`             | Задача                 | лише авторизованим | детальний перегляд: велика картка + матеріали |
 | `/list/read_watch`     | Читати / Дивитись      | лише авторизованим | заглушка |
 | `/list/someday`        | Колись                 | лише авторизованим | заглушка |
 | `/list/archive`        | Архів                  | лише авторизованим | заглушка |
@@ -316,8 +355,21 @@ Supabase SDK).
 
 Будь-який невідомий шлях так само веде на `/inbox` або `/auth`,
 залежно від сесії. Пункти меню генеруються з цієї ж таблиці
-маршрутів (`getRoutes()` у `router.js`, лише захищені) — щоб не
-тримати список посилань окремо у навігації й окремо в роутері.
+маршрутів (`getRoutes()` у `router.js`, лише захищені й лише
+статичні — динамічні шляхи типу `/task/:id` у меню не потрапляють,
+на них переходять кліком по назві задачі) — щоб не тримати список
+посилань окремо у навігації й окремо в роутері.
+
+`/task/:id` — перший (і поки єдиний) маршрут із параметром.
+`router.js` розпізнає сегмент `:id` найпростішим матчингом
+(`matchRoute()`, без бібліотеки-роутера) і передає розібраний
+параметр другим аргументом у `route.render(pageRoot, params)` —
+решта сторінок цей аргумент просто ігнорують, зворотної
+несумісності немає. Заголовок задачі скрізь, де показується картка
+(`TaskCard.js`), — посилання `<a href="/task/{id}" data-link>` на
+цю сторінку; той самий глобальний обробник кліків у `router.js`
+(що вже перехоплює пункти меню) підхоплює й цей лінк без додаткової
+розводки.
 
 `/board` — єдиний маршрут із `wide: true`: сторінка отримує клас
 `.page--wide` (ширший контент, `--board-width: 1400px`, замість
@@ -402,14 +454,23 @@ dropdown «Статус», тож зі змінити статус можна і
   того часу зміна статусу як через dropdown, так і перетягуванням
   повертатиме помилку бази (сам список задач і порожні колонки
   показуються нормально).
+- **Міні-дедлайн і міні-теги підзадачі** — код готовий
+  (`detailedSubtasks` у `TaskCard.js`/`SubtaskItem.js` на
+  `/task/:id`), але міграція
+  `20260824040000_add_due_date_and_tags_to_subtasks.sql` теж іще не
+  виконана — до того часу зміна цих полів повертатиме помилку бази.
 - **Сторінки `/list/someday`, `/list/read_watch`, `/list/archive`**
   — досі заглушки (`/list/next` уже показує реальний список, за тим
   же принципом можна повторити для решти трьох). Dropdown «Список»
   у картці задачі вже вміє переносити задачу в будь-який із них
   (колонка `list`), але побачити її там можна поки лише в базі.
-- **Матеріали** — таблиця `materials` існує й має RLS (розділ 1),
-  UI для них (показ/додавання посилань і файлів на задачі) не
-  написаний.
+- **Реальне завантаження файлів у «Матеріали»** — кнопки
+  «Зображення» / «Файл» / «З папки на ПК» у `MaterialsBlock.js`
+  показують пояснення, чому це поки не працює, замість самої дії:
+  для справжнього завантаження потрібне окреме сховище (Supabase
+  Storage), якого в проєкті ще немає — це б означало ще один
+  ручний крок налаштування, як-от Supabase-проєкт чи Google OAuth.
+  Посилання/Notion/Google Drive (URL-типи) — уже повністю робочі.
 - **AI-функції** — не реалізовані.
 - **Тестування** — автоматичних тестів поки немає. Вхід через
   Google і збереження задач перевірені вручну; автоматичної

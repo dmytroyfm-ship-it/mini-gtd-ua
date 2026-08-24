@@ -24,6 +24,19 @@
 import { supabase } from "../lib/supabaseClient.js";
 import { getSession } from "./authStore.js";
 
+// Одна задача за id — для сторінки детального перегляду (/task/:id).
+export async function getTaskById(id) {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 // Найновіші — зверху.
 export async function getTasks(list) {
   const { data, error } = await supabase

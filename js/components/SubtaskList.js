@@ -9,7 +9,8 @@
 import { renderSubtaskItem } from "./SubtaskItem.js";
 
 export function renderSubtaskList(subtasks, handlers = {}) {
-  const { onToggle, onDelete, onAdd } = handlers;
+  const { onToggle, onDelete, onAdd, onDueDateChange, onAddTag, detailed } = handlers;
+  const itemHandlers = { onToggle, onDelete, onDueDateChange, onAddTag, detailed };
 
   const wrapper = document.createElement("div");
   wrapper.className = "subtask-list-block";
@@ -17,7 +18,7 @@ export function renderSubtaskList(subtasks, handlers = {}) {
   const list = document.createElement("ul");
   list.className = "subtask-list";
   subtasks.forEach((subtask) => {
-    list.appendChild(renderSubtaskItem(subtask, { onToggle, onDelete }));
+    list.appendChild(renderSubtaskItem(subtask, itemHandlers));
   });
 
   const form = document.createElement("form");
@@ -50,8 +51,8 @@ export function renderSubtaskList(subtasks, handlers = {}) {
 
     // Оптимістичний рядок — тимчасовий об'єкт-заглушка, поки база
     // не підтвердила збереження.
-    const optimisticSubtask = { id: `temp-${Date.now()}`, title, completed: false };
-    const row = renderSubtaskItem(optimisticSubtask, { onToggle, onDelete });
+    const optimisticSubtask = { id: `temp-${Date.now()}`, title, completed: false, tags: [], due_date: null };
+    const row = renderSubtaskItem(optimisticSubtask, itemHandlers);
     row.classList.add("subtask-item--pending");
     list.appendChild(row);
 

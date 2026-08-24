@@ -15,7 +15,14 @@
 // решти картки, бо не впливають на те, які задачі показані у
 // списку (PROJECT_RULES, п.6 — бізнес-логіка в store, не тут).
 
-import { getSubtasks, addSubtask, setSubtaskCompleted, deleteSubtask } from "../store/subtaskStore.js";
+import {
+  getSubtasks,
+  addSubtask,
+  setSubtaskCompleted,
+  setSubtaskDueDate,
+  setSubtaskTags,
+  deleteSubtask,
+} from "../store/subtaskStore.js";
 import { renderSubtaskList } from "./SubtaskList.js";
 
 function escapeHtml(value) {
@@ -39,11 +46,17 @@ export function renderTaskCard(task, handlers = {}) {
     onDueDateChange,
     onAddTag,
     draggable,
+    detail,
+    detailedSubtasks,
   } = handlers;
 
   const card = document.createElement("li");
   card.className = "task-card";
   if (task.completed) card.classList.add("task-card--completed");
+  // detail — більша версія картки для сторінки /task/:id («велика
+  // картка» замість компактного рядка списку); та сама розмітка,
+  // лише інший масштаб через CSS-модифікатор.
+  if (detail) card.classList.add("task-card--detail");
 
   // draggable — вмикається лише сторінкою, якій це треба (дошка
   // /board); на «Вхідних»/«Задачах» handlers.draggable немає, і
@@ -75,7 +88,9 @@ export function renderTaskCard(task, handlers = {}) {
         ${task.completed ? "checked" : ""}
         aria-label="Позначити «${safeTitle}» виконаною"
       />
-      <h3 class="task-card__title">${safeTitle}</h3>
+      <h3 class="task-card__title">
+        <a class="task-card__title-link" href="/task/${task.id}" data-link>${safeTitle}</a>
+      </h3>
       <button type="button" class="task-card__trash" aria-label="Перемістити «${safeTitle}» в кошик">
         ${TRASH_ICON_SVG}
       </button>
@@ -134,7 +149,7 @@ export function renderTaskCard(task, handlers = {}) {
   wireListSelect(card, task, onListChange);
   wireDueDate(card, task, onDueDateChange);
   wireAddTag(card, task, onAddTag);
-  loadSubtasks(card, task);
+  loadSubtasks(card, task, detailedSubtasks);
 
   return card;
 }
@@ -288,7 +303,7 @@ function wireAddTag(card, task, onAddTag) {
   });
 }
 
-function loadSubtasks(card, task) {
+function loadSubtasks(card, task, detailedSubtasks) {
   const block = card.querySelector(".task-card__subtasks");
   const loading = block.querySelector(".task-card__subtasks-loading");
 
@@ -298,6 +313,17 @@ function loadSubtasks(card, task) {
         onToggle: (subtask, completed) => setSubtaskCompleted(subtask.id, completed),
         onDelete: (subtask) => deleteSubtask(subtask.id),
         onAdd: (title) => addSubtask(task.id, title),
+        // Міні-дедлайн і міні-теги підзадачі — лише на сторінці
+        // детального перегляду (detailedSubtasks); у компактних
+        // картках («Вхідні», «Задачі», дошка) рядок підзадачі й
+        // далі лишається простим чекліст-пунктом.
+        onDueDateChange: detailedSubtasks
+          ? (subtask, dueDate) => setSubtaskDueDate(subtask.id, dueDate)
+          : undefined,
+        onAddTag: detailedSubtasks
+          ? (subtask, tag) => setSubtaskTags(subtask.id, [...(subtask.tags || []), tag])
+          : undefined,
+        detailed: detailedSubtasks,
       });
       loading.replaceWith(list);
     })

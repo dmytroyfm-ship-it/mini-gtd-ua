@@ -7,6 +7,7 @@
 import { renderInbox } from "./pages/inbox.js";
 import { renderNext } from "./pages/next.js";
 import { renderBoard } from "./pages/board.js";
+import { renderTaskDetail } from "./pages/taskDetail.js";
 import { renderTrash } from "./pages/trash.js";
 import { renderStub } from "./pages/stub.js";
 import { renderAuth } from "./pages/auth.js";
@@ -20,6 +21,7 @@ const ROUTES = [
   { path: "/inbox", title: "Вхідні", render: renderInbox, protected: true },
   { path: "/list/next", title: "Задачі", render: renderNext, protected: true },
   { path: "/board", title: "Дошка", render: renderBoard, protected: true, wide: true },
+  { path: "/task/:id", title: "Задача", render: renderTaskDetail, protected: true },
   { path: "/list/read_watch", title: "Читати / Дивитись", render: (root) => renderStub(root, "Читати / Дивитись"), protected: true },
   { path: "/list/someday", title: "Колись", render: (root) => renderStub(root, "Колись"), protected: true },
   { path: "/list/archive", title: "Архів", render: (root) => renderStub(root, "Архів"), protected: true },
@@ -30,13 +32,41 @@ let pageRoot = null;
 let onRouteChange = null;
 
 // Лише protected-маршрути йдуть у меню навігації — /auth туди не
-// потрапляє.
+// потрапляє, так само як і динамічні («/task/:id» — на нього
+// потрапляють кліком по задачі, а не з меню).
 export function getRoutes() {
-  return ROUTES.filter((route) => route.protected);
+  return ROUTES.filter((route) => route.protected && !route.path.includes(":"));
 }
 
-function findRoute(pathname) {
-  return ROUTES.find((route) => route.path === pathname) || null;
+// Найпростіший матчинг динамічних сегментів (":id" тощо) — без
+// повноцінної бібліотеки роутера, лише те, що реально потрібно:
+// один параметр у /task/:id. Статичні маршрути звіряються прямим
+// рядковим порівнянням, як і раніше.
+function matchRoute(pathname) {
+  const pathParts = pathname.split("/");
+
+  for (const route of ROUTES) {
+    if (!route.path.includes(":")) {
+      if (route.path === pathname) return { route, params: {} };
+      continue;
+    }
+
+    const routeParts = route.path.split("/");
+    if (routeParts.length !== pathParts.length) continue;
+
+    const params = {};
+    const matched = routeParts.every((part, i) => {
+      if (part.startsWith(":")) {
+        params[part.slice(1)] = decodeURIComponent(pathParts[i]);
+        return true;
+      }
+      return part === pathParts[i];
+    });
+
+    if (matched) return { route, params };
+  }
+
+  return null;
 }
 
 function fallbackPath() {
@@ -53,12 +83,14 @@ async function renderCurrentRoute() {
     return;
   }
 
-  const route = findRoute(pathname);
+  const matched = matchRoute(pathname);
 
-  if (!route) {
+  if (!matched) {
     await navigate(fallbackPath(), { replace: true });
     return;
   }
+
+  const { route, params } = matched;
 
   const authenticated = Boolean(getSession());
 
@@ -78,7 +110,7 @@ async function renderCurrentRoute() {
   pageRoot.className = ["page", route.bare && "page--auth", route.wide && "page--wide"]
     .filter(Boolean)
     .join(" ");
-  await route.render(pageRoot);
+  await route.render(pageRoot, params);
   playEnterTransition(pageRoot);
 
   if (onRouteChange) onRouteChange(route.path);
