@@ -48,8 +48,9 @@ export function renderTrashItem(task, handlers = {}) {
     try {
       await onRestore(task);
     } catch (err) {
+      console.error(err);
       setBusy(false);
-      window.alert(err?.message || "Не вдалося відновити задачу.");
+      window.alert("Не вдалося відновити задачу. Спробуйте ще раз.");
     }
   });
 
@@ -65,8 +66,9 @@ export function renderTrashItem(task, handlers = {}) {
     try {
       await onDeleteForever(task);
     } catch (err) {
+      console.error(err);
       setBusy(false);
-      window.alert(err?.message || "Не вдалося видалити задачу.");
+      window.alert("Не вдалося видалити задачу. Спробуйте ще раз.");
     }
   });
 

@@ -88,11 +88,12 @@ export async function renderBoard(root) {
     try {
       tasks = await getAllTasks();
     } catch (err) {
+      console.error(err);
       boardEl.innerHTML = "";
       hiddenBoardEl.innerHTML = "";
       const error = document.createElement("p");
       error.className = "page__text";
-      error.textContent = err?.message || "Не вдалося завантажити задачі.";
+      error.textContent = "Не вдалося завантажити задачі. Спробуйте оновити сторінку.";
       boardEl.appendChild(error);
       return;
     }
@@ -163,7 +164,8 @@ export async function renderBoard(root) {
       await moveTaskToColumn(taskId, columnKey);
       await refreshBoard();
     } catch (err) {
-      window.alert(err?.message || "Не вдалося перемістити задачу.");
+      console.error(err);
+      window.alert("Не вдалося перемістити задачу. Спробуйте ще раз.");
     }
   }
 

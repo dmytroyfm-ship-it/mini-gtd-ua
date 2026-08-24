@@ -42,9 +42,10 @@ export async function renderInbox(root) {
         onAddTag: handleAddTag,
       });
     } catch (err) {
+      console.error(err);
       nextEl = document.createElement("p");
       nextEl.className = "page__text";
-      nextEl.textContent = err?.message || "Не вдалося завантажити задачі.";
+      nextEl.textContent = "Не вдалося завантажити задачі. Спробуйте оновити сторінку.";
     }
 
     listSlot.replaceWith(nextEl);

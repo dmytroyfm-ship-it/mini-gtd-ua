@@ -6,10 +6,12 @@
 
 import { renderInbox } from "./pages/inbox.js";
 import { renderNext } from "./pages/next.js";
+import { renderReadWatch } from "./pages/readWatch.js";
+import { renderSomeday } from "./pages/someday.js";
+import { renderArchive } from "./pages/archive.js";
 import { renderBoard } from "./pages/board.js";
 import { renderTaskDetail } from "./pages/taskDetail.js";
 import { renderTrash } from "./pages/trash.js";
-import { renderStub } from "./pages/stub.js";
 import { renderAuth } from "./pages/auth.js";
 import { getSession } from "./store/authStore.js";
 
@@ -22,9 +24,9 @@ const ROUTES = [
   { path: "/list/next", title: "Задачі", render: renderNext, protected: true },
   { path: "/board", title: "Дошка", render: renderBoard, protected: true, wide: true },
   { path: "/task/:id", title: "Задача", render: renderTaskDetail, protected: true },
-  { path: "/list/read_watch", title: "Читати / Дивитись", render: (root) => renderStub(root, "Читати / Дивитись"), protected: true },
-  { path: "/list/someday", title: "Колись", render: (root) => renderStub(root, "Колись"), protected: true },
-  { path: "/list/archive", title: "Архів", render: (root) => renderStub(root, "Архів"), protected: true },
+  { path: "/list/read_watch", title: "Читати / Дивитись", render: renderReadWatch, protected: true },
+  { path: "/list/someday", title: "Колись", render: renderSomeday, protected: true },
+  { path: "/list/archive", title: "Архів", render: renderArchive, protected: true },
   { path: "/trash", title: "Кошик", render: renderTrash, protected: true },
 ];
 

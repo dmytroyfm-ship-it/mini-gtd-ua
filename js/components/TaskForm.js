@@ -38,6 +38,16 @@ export function renderTaskForm(onSubmit) {
   const submitButton = form.querySelector(".task-form__submit");
   const error = form.querySelector(".task-form__error");
 
+  // Стандартна бульбашка "Заповніть це поле" — мовою самого
+  // браузера, не нашого застосунку. Власний текст через
+  // setCustomValidity() гарантує українську незалежно від мови ОС.
+  titleInput.addEventListener("invalid", () => {
+    titleInput.setCustomValidity(titleInput.value.trim() ? "" : "Вкажіть назву задачі.");
+  });
+  titleInput.addEventListener("input", () => {
+    titleInput.setCustomValidity("");
+  });
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -52,7 +62,8 @@ export function renderTaskForm(onSubmit) {
       titleInput.value = "";
       noteInput.value = "";
     } catch (err) {
-      error.textContent = err?.message || "Не вдалося зберегти задачу. Спробуйте ще раз.";
+      console.error(err);
+      error.textContent = "Не вдалося зберегти задачу. Спробуйте ще раз.";
       error.hidden = false;
     } finally {
       submitButton.disabled = false;

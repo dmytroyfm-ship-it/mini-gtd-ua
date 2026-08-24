@@ -70,10 +70,11 @@ export function renderMaterialsBlock(taskId) {
     try {
       materials = await getMaterials(taskId);
     } catch (err) {
+      console.error(err);
       grid.innerHTML = "";
       const error = document.createElement("p");
       error.className = "page__text";
-      error.textContent = err?.message || "Не вдалося завантажити матеріали.";
+      error.textContent = "Не вдалося завантажити матеріали. Спробуйте оновити сторінку.";
       grid.appendChild(error);
       return;
     }
@@ -113,8 +114,9 @@ export function renderMaterialsBlock(taskId) {
         card.remove();
         if (!grid.children.length) refresh();
       } catch (err) {
+        console.error(err);
         deleteButton.disabled = false;
-        window.alert(err?.message || "Не вдалося видалити матеріал.");
+        window.alert("Не вдалося видалити матеріал. Спробуйте ще раз.");
       }
     });
 
@@ -133,7 +135,8 @@ export function renderMaterialsBlock(taskId) {
       await addMaterial(taskId, { type, url: trimmedUrl, title: finalTitle });
       await refresh();
     } catch (err) {
-      window.alert(err?.message || "Не вдалося додати матеріал.");
+      console.error(err);
+      window.alert("Не вдалося додати матеріал. Спробуйте ще раз.");
     }
   }
 

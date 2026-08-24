@@ -63,8 +63,9 @@ export function renderSubtaskList(subtasks, handlers = {}) {
       optimisticSubtask.id = saved.id;
       row.classList.remove("subtask-item--pending");
     } catch (err) {
+      console.error(err);
       row.remove();
-      window.alert(err?.message || "Не вдалося додати підзадачу.");
+      window.alert("Не вдалося додати підзадачу. Спробуйте ще раз.");
     } finally {
       button.disabled = false;
     }

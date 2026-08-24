@@ -81,8 +81,9 @@ export function renderSubtaskItem(subtask, handlers = {}) {
       subtask.completed = next;
       row.classList.toggle("subtask-item--completed", next);
     } catch (err) {
+      console.error(err);
       checkbox.checked = !next;
-      window.alert(err?.message || "Не вдалося оновити підзадачу.");
+      window.alert("Не вдалося оновити підзадачу. Спробуйте ще раз.");
     } finally {
       checkbox.disabled = false;
     }
@@ -97,8 +98,9 @@ export function renderSubtaskItem(subtask, handlers = {}) {
       await onDelete(subtask);
       row.remove();
     } catch (err) {
+      console.error(err);
       deleteButton.disabled = false;
-      window.alert(err?.message || "Не вдалося видалити підзадачу.");
+      window.alert("Не вдалося видалити підзадачу. Спробуйте ще раз.");
     }
   });
 
@@ -123,8 +125,9 @@ function wireSubtaskDueDate(row, subtask, onDueDateChange) {
       await onDueDateChange(subtask, value || null);
       subtask.due_date = value || null;
     } catch (err) {
+      console.error(err);
       input.value = subtask.due_date || "";
-      window.alert(err?.message || "Не вдалося зберегти дедлайн підзадачі.");
+      window.alert("Не вдалося зберегти дедлайн підзадачі. Спробуйте ще раз.");
     } finally {
       input.disabled = false;
     }
@@ -165,7 +168,8 @@ function wireSubtaskAddTag(row, subtask, onAddTag) {
         tagEl.textContent = value;
         tagList.appendChild(tagEl);
       } catch (err) {
-        window.alert(err?.message || "Не вдалося додати тег.");
+        console.error(err);
+        window.alert("Не вдалося додати тег. Спробуйте ще раз.");
       }
     }
 

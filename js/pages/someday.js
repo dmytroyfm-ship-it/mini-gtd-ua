@@ -1,9 +1,9 @@
-// Сторінка «Задачі» (/list/next).
+// Сторінка «Колись» (/list/someday).
 
 import { createListPage } from "./listPage.js";
 
-export const renderNext = createListPage({
-  list: "next",
-  title: "Задачі",
+export const renderSomeday = createListPage({
+  list: "someday",
+  title: "Колись",
   emptyText: "Тут з'являться задачі, перенесені сюди зі «Вхідних».",
 });

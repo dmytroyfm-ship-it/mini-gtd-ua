@@ -76,6 +76,11 @@ export function consumeAuthError() {
 
   if (!description) return null;
 
+  // Сам текст від Google/Supabase — англійською; користувачу
+  // показуємо українську версію, оригінал лишається лише в консолі
+  // для діагностики.
+  console.error("Помилка входу через Google:", description.replace(/\+/g, " "));
+
   window.history.replaceState({}, "", window.location.pathname);
-  return description.replace(/\+/g, " ");
+  return "Не вдалося увійти через Google. Спробуйте ще раз.";
 }

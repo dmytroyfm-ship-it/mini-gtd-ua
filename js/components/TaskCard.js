@@ -166,8 +166,9 @@ function wireCompletedCheckbox(card, task, onToggleCompleted) {
     try {
       await onToggleCompleted(task, next);
     } catch (err) {
+      console.error(err);
       checkbox.checked = !next;
-      window.alert(err?.message || "Не вдалося оновити задачу.");
+      window.alert("Не вдалося оновити задачу. Спробуйте ще раз.");
     } finally {
       checkbox.disabled = false;
     }
@@ -185,8 +186,9 @@ function wireTrashButton(card, task, onDelete) {
     try {
       await onDelete(task);
     } catch (err) {
+      console.error(err);
       trashButton.disabled = false;
-      window.alert(err?.message || "Не вдалося видалити задачу.");
+      window.alert("Не вдалося видалити задачу. Спробуйте ще раз.");
     }
   });
 }
@@ -203,8 +205,9 @@ function wireStatusSelect(card, task, onStatusChange) {
     try {
       await onStatusChange(task, value);
     } catch (err) {
+      console.error(err);
       select.value = task.status || "not_urgent";
-      window.alert(err?.message || "Не вдалося змінити статус.");
+      window.alert("Не вдалося змінити статус. Спробуйте ще раз.");
     } finally {
       select.disabled = false;
     }
@@ -223,8 +226,9 @@ function wireListSelect(card, task, onListChange) {
     try {
       await onListChange(task, value);
     } catch (err) {
+      console.error(err);
       select.value = task.list;
-      window.alert(err?.message || "Не вдалося перемістити задачу.");
+      window.alert("Не вдалося перемістити задачу. Спробуйте ще раз.");
     } finally {
       select.disabled = false;
     }
@@ -244,8 +248,9 @@ function wireDueDate(card, task, onDueDateChange) {
       await onDueDateChange(task, value || null);
       clearButton.hidden = !value;
     } catch (err) {
+      console.error(err);
       input.value = task.due_date || "";
-      window.alert(err?.message || "Не вдалося зберегти дедлайн.");
+      window.alert("Не вдалося зберегти дедлайн. Спробуйте ще раз.");
     } finally {
       input.disabled = false;
     }
@@ -286,7 +291,8 @@ function wireAddTag(card, task, onAddTag) {
       try {
         await onAddTag(task, value);
       } catch (err) {
-        window.alert(err?.message || "Не вдалося додати тег.");
+        console.error(err);
+        window.alert("Не вдалося додати тег. Спробуйте ще раз.");
       }
     }
 
@@ -328,6 +334,7 @@ function loadSubtasks(card, task, detailedSubtasks) {
       loading.replaceWith(list);
     })
     .catch((err) => {
-      loading.textContent = err?.message || "Не вдалося завантажити підзадачі.";
+      console.error(err);
+      loading.textContent = "Не вдалося завантажити підзадачі. Спробуйте оновити сторінку.";
     });
 }

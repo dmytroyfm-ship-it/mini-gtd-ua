@@ -40,10 +40,11 @@ export async function renderTaskDetail(root, params) {
     try {
       task = await getTaskById(params.id);
     } catch (err) {
+      console.error(err);
       content.innerHTML = "";
       const error = document.createElement("p");
       error.className = "page__text";
-      error.textContent = err?.message || "Задачу не знайдено.";
+      error.textContent = "Задачу не знайдено.";
       content.appendChild(error);
       return false;
     }
