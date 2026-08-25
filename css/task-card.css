@@ -29,7 +29,8 @@
   border-radius: 20px;
 }
 
-.task-card--detail .task-card__title {
+.task-card--detail .task-card__title,
+.task-card--detail .task-card__edit-title-input {
   font-size: 1.4rem;
 }
 
@@ -115,7 +116,13 @@
 
 /* --- інлайн-редагування назви/нотатки --- */
 
+/* Прямий flex-елемент .task-card__header (замінює <h3> цілком під
+   час редагування — TaskCard.js) — той самий flex: 1 1 auto;
+   min-width: 0, що й у .task-card__title, інакше на довгих назвах
+   поле не розтягувалось на всю доступну ширину. */
 .task-card__edit-title-input {
+  flex: 1 1 auto;
+  min-width: 0;
   width: 100%;
   padding: 0.3rem 0.5rem;
   background: var(--bg-raised);

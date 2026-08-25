@@ -228,11 +228,21 @@ function wireEditTask(card, task, onEditTask) {
     if (!titleHeading) return; // вже редагується
 
     const noteSlot = card.querySelector(".task-card__note-slot");
-    const originalTitleHTML = titleHeading.innerHTML;
     const originalNoteHTML = noteSlot.innerHTML;
 
-    titleHeading.innerHTML = `<input type="text" class="task-card__edit-title-input" value="${escapeHtml(task.title)}" />`;
-    const titleInput = titleHeading.querySelector(".task-card__edit-title-input");
+    // Замінюємо сам <h3> (а не лише його innerHTML) на <input> —
+    // інакше поле вводу опиняється вкладеним у h3 з flex-basis:
+    // auto, і його width: 100% рахується від щойно перерахованого
+    // (за вмістом самого інпута) розміру h3, а не від реальної
+    // ширини картки — на довгих назвах поле виглядало обрізаним.
+    // Замінивши h3 цілком, .task-card__edit-title-input сам стає
+    // flex-елементом .task-card__header (той самий flex: 1 1 auto;
+    // min-width: 0, що й був у h3 — див. CSS) і росте нормально.
+    const titleInput = document.createElement("input");
+    titleInput.type = "text";
+    titleInput.className = "task-card__edit-title-input";
+    titleInput.value = task.title;
+    titleHeading.replaceWith(titleInput);
 
     noteSlot.innerHTML = `
       <textarea class="task-card__edit-note-input" rows="2" placeholder="Додаткові деталі…">${escapeHtml(task.note || "")}</textarea>
@@ -249,7 +259,7 @@ function wireEditTask(card, task, onEditTask) {
     titleInput.select();
 
     function restore() {
-      titleHeading.innerHTML = originalTitleHTML;
+      titleInput.replaceWith(titleHeading); // titleHeading — той самий незайманий вузол, innerHTML не чіпали
       noteSlot.innerHTML = originalNoteHTML;
     }
 
