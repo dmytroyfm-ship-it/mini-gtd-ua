@@ -105,9 +105,9 @@ const BUCKET_TITLES: Record<Bucket, string> = {
 const BUCKET_EMPTY_TEXT: Record<Bucket, string> = {
   overdue: "Прострочених нема 👍",
   today: "На сьогодні нічого нема 👍",
-  tomorrow: "На завтра нічого нема",
-  urgent: "Термінових нема",
-  other: "Порожньо",
+  tomorrow: "На завтра нічого нема 🙌",
+  urgent: "Термінових нема 🎉",
+  other: "Порожньо ✨",
 };
 const BUCKET_ORDER: Bucket[] = ["overdue", "today", "tomorrow", "urgent", "other"];
 
