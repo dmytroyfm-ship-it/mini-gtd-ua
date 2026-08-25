@@ -16,6 +16,7 @@
 
 import {
   getAllTasks,
+  updateTask,
   setTaskStatus,
   setTaskCompleted,
   moveTaskToTrash,
@@ -65,6 +66,7 @@ export async function renderBoard(root) {
   const cardHandlers = {
     onToggleCompleted: handleToggleCompleted,
     onDelete: handleDelete,
+    onEditTask: handleEditTask,
     onStatusChange: handleStatusChange,
     onListChange: handleListChange,
     onDueDateChange: handleDueDateChange,
@@ -164,6 +166,11 @@ export async function renderBoard(root) {
 
   async function handleDelete(task) {
     await moveTaskToTrash(task.id);
+    await refreshBoard();
+  }
+
+  async function handleEditTask(task, values) {
+    await updateTask(task.id, values);
     await refreshBoard();
   }
 

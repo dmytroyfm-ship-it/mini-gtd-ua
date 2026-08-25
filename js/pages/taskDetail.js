@@ -7,6 +7,7 @@
 
 import {
   getTaskById,
+  updateTask,
   setTaskCompleted,
   moveTaskToTrash,
   setTaskStatus,
@@ -60,6 +61,7 @@ export async function renderTaskDetail(root, params) {
     const card = renderTaskCard(task, {
       onToggleCompleted: handleToggleCompleted,
       onDelete: handleDelete,
+      onEditTask: handleEditTask,
       onStatusChange: handleStatusChange,
       onListChange: handleListChange,
       onDueDateChange: handleDueDateChange,
@@ -87,6 +89,11 @@ export async function renderTaskDetail(root, params) {
   async function handleDelete(t) {
     await moveTaskToTrash(t.id);
     navigate("/inbox");
+  }
+
+  async function handleEditTask(t, values) {
+    await updateTask(t.id, values);
+    await loadTask();
   }
 
   async function handleStatusChange(t, status) {

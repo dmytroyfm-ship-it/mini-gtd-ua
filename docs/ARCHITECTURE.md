@@ -539,14 +539,15 @@ GTD додаток/
 │   │   └── supabaseClient.js      — єдиний клієнт Supabase (createClient)
 │   ├── store/
 │   │   ├── taskStore.js           — задачі через Supabase (getTaskById, getTasks,
-│   │   │                             getAllTasks, addTask, setTaskCompleted,
+│   │   │                             getAllTasks, addTask, updateTask,
+│   │   │                             setTaskCompleted,
 │   │   │                             setTaskStatus, setTaskList, setTaskDueDate,
 │   │   │                             setTaskTags, moveTaskToTrash, getTrashedTasks,
 │   │   │                             restoreTask, deleteTaskPermanently)
 │   │   │                             + JSDoc-тип Task
 │   │   ├── subtaskStore.js         — підзадачі (getSubtasks, addSubtask,
-│   │   │                             setSubtaskCompleted, setSubtaskDueDate,
-│   │   │                             setSubtaskTags, deleteSubtask)
+│   │   │                             setSubtaskTitle, setSubtaskCompleted,
+│   │   │                             setSubtaskDueDate, setSubtaskTags, deleteSubtask)
 │   │   ├── materialStore.js         — матеріали (getMaterials, addMaterial,
 │   │   │                             deleteMaterial)
 │   │   ├── commentStore.js          — коментарі (getComments, addComment,

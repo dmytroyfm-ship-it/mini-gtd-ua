@@ -46,6 +46,13 @@ export async function addSubtask(taskId, title) {
   return data;
 }
 
+// Редагування назви підзадачі (SubtaskItem.js, кнопка «✎»).
+export async function setSubtaskTitle(id, title) {
+  const { error } = await supabase.from("subtasks").update({ title: title.trim() }).eq("id", id);
+
+  if (error) throw error;
+}
+
 export async function setSubtaskCompleted(id, completed) {
   const { error } = await supabase.from("subtasks").update({ completed }).eq("id", id);
 

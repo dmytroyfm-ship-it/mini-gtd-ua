@@ -8,6 +8,7 @@
 import {
   getTasks,
   addTask,
+  updateTask,
   setTaskCompleted,
   moveTaskToTrash,
   setTaskStatus,
@@ -39,6 +40,7 @@ export async function renderInbox(root) {
       nextEl = renderTaskList(tasks, {
         onToggleCompleted: handleToggleCompleted,
         onDelete: handleDelete,
+        onEditTask: handleEditTask,
         onStatusChange: handleStatusChange,
         onListChange: handleListChange,
         onDueDateChange: handleDueDateChange,
@@ -67,6 +69,11 @@ export async function renderInbox(root) {
 
   async function handleDelete(task) {
     await moveTaskToTrash(task.id);
+    await refreshList();
+  }
+
+  async function handleEditTask(task, values) {
+    await updateTask(task.id, values);
     await refreshList();
   }
 

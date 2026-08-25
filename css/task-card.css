@@ -78,6 +78,7 @@
   text-decoration: underline;
 }
 
+.task-card__edit,
 .task-card__trash {
   flex: 0 0 auto;
   display: inline-flex;
@@ -90,15 +91,18 @@
   border: none;
   border-radius: 7px;
   color: var(--ink-dim);
+  font-size: 0.85rem;
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+.task-card__edit:hover,
 .task-card__trash:hover {
   background: var(--accent-soft);
   color: var(--accent);
 }
 
+.task-card__edit:disabled,
 .task-card__trash:disabled {
   opacity: 0.5;
   cursor: default;
@@ -107,6 +111,84 @@
 .task-card__trash-icon {
   width: 16px;
   height: 16px;
+}
+
+/* --- інлайн-редагування назви/нотатки --- */
+
+.task-card__edit-title-input {
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--accent-dim);
+  border-radius: 6px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.02rem;
+}
+
+.task-card__edit-note-input {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.task-card__edit-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.task-card__edit-save,
+.task-card__edit-cancel {
+  padding: 0.35rem 0.8rem;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.task-card__edit-save {
+  background: var(--accent);
+  border: none;
+  color: var(--ink);
+}
+
+.task-card__edit-save:hover {
+  background: var(--accent-dim);
+}
+
+.task-card__edit-save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.task-card__edit-cancel {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+}
+
+.task-card__edit-cancel:hover {
+  background: var(--bg-raised);
+  color: var(--ink);
+}
+
+/* Порожній слот (нема нотатки) не повинен займати місце в gap
+   .task-card — інакше кожна задача без нотатки мала б зайвий
+   проміжок там, де нотатка могла б бути. */
+.task-card__note-slot:empty {
+  display: none;
 }
 
 .task-card__note {

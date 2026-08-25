@@ -82,6 +82,17 @@ export async function addTask(values) {
   return data;
 }
 
+// values: { title: string, note?: string } — редагування назви й
+// нотатки (TaskCard.js, кнопка «✎»).
+export async function updateTask(id, values) {
+  const { error } = await supabase
+    .from("tasks")
+    .update({ title: values.title.trim(), note: (values.note || "").trim() })
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
 export async function setTaskCompleted(id, completed) {
   const { error } = await supabase.from("tasks").update({ completed }).eq("id", id);
 

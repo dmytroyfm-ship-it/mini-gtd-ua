@@ -17,9 +17,10 @@ function escapeHtml(value) {
 }
 
 const TRASH_SIGN = "✕";
+const EDIT_SIGN = "✎";
 
 export function renderSubtaskItem(subtask, handlers = {}) {
-  const { onToggle, onDelete, onDueDateChange, onAddTag, detailed } = handlers;
+  const { onToggle, onDelete, onDueDateChange, onAddTag, onEditTitle, detailed } = handlers;
 
   const row = document.createElement("li");
   row.className = "subtask-item";
@@ -63,6 +64,7 @@ export function renderSubtaskItem(subtask, handlers = {}) {
         ${tagsHtml}
       </div>
       ${dueHtml}
+      <button type="button" class="subtask-item__edit" aria-label="Редагувати назву «${safeTitle}»">${EDIT_SIGN}</button>
       <button type="button" class="subtask-item__delete" aria-label="Видалити підзадачу «${safeTitle}»">${TRASH_SIGN}</button>
     </div>
   `;
@@ -104,12 +106,84 @@ export function renderSubtaskItem(subtask, handlers = {}) {
     }
   });
 
+  wireSubtaskEditTitle(row, subtask, onEditTitle);
+
   if (detailed) {
     wireSubtaskDueDate(row, subtask, onDueDateChange);
     wireSubtaskAddTag(row, subtask, onAddTag);
   }
 
   return row;
+}
+
+// Клік по «✎» — рядок .subtask-item__title міняється на текстове
+// поле, зберігає і по Enter, і по blur (звичайний клік повз поле не
+// мав би скасовувати введене — той самий принцип, що й у
+// AccountMenu.js), Escape — єдиний спосіб явно скасувати.
+function wireSubtaskEditTitle(row, subtask, onEditTitle) {
+  const editButton = row.querySelector(".subtask-item__edit");
+
+  editButton.addEventListener("click", () => {
+    const titleSpan = row.querySelector(".subtask-item__title");
+    if (!titleSpan) return; // вже редагується
+
+    const originalText = titleSpan.textContent;
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "subtask-item__title-input";
+    input.value = originalText;
+    titleSpan.replaceWith(input);
+    input.focus();
+    input.select();
+
+    let cancelled = false;
+    let saving = false;
+
+    function renderText(text) {
+      const span = document.createElement("span");
+      span.className = "subtask-item__title";
+      span.textContent = text;
+      input.replaceWith(span);
+    }
+
+    async function save() {
+      if (saving) return;
+      saving = true;
+
+      const nextTitle = input.value.trim();
+      if (!nextTitle || nextTitle === originalText || !onEditTitle) {
+        renderText(originalText);
+        return;
+      }
+
+      input.disabled = true; // сам по собі викликає blur — saving-прапорець захищає від повторного save()
+
+      try {
+        await onEditTitle(subtask, nextTitle);
+        subtask.title = nextTitle;
+        renderText(nextTitle);
+      } catch (err) {
+        console.error(err);
+        window.alert("Не вдалося зберегти назву підзадачі. Спробуйте ще раз.");
+        renderText(originalText);
+      }
+    }
+
+    input.addEventListener("blur", () => {
+      if (!cancelled) save();
+    });
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        save();
+      } else if (event.key === "Escape") {
+        cancelled = true;
+        renderText(originalText);
+      }
+    });
+  });
 }
 
 function wireSubtaskDueDate(row, subtask, onDueDateChange) {

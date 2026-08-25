@@ -1,7 +1,8 @@
-// Повна картка задачі — «пульт керування»: назва, чекбокс
-// «виконано», кошик, теги (+ додати), статус і список (dropdown —
-// зміна списку одразу переносить задачу), дедлайн (date picker +
-// очистити), підзадачі.
+// Повна картка задачі — «пульт керування»: назва + нотатка
+// (редагування через «✎»), чекбокс «виконано», кошик, теги
+// (+ додати), статус і список (dropdown — зміна списку одразу
+// переносить задачу), дедлайн (date picker + очистити), підзадачі
+// (кожну теж можна перейменувати через «✎»).
 //
 // Dropdown «Статус» керує тим самим полем status, що й колонки
 // дошки /board (drag-and-drop) — це навмисно один і той самий
@@ -21,6 +22,7 @@ import {
   setSubtaskCompleted,
   setSubtaskDueDate,
   setSubtaskTags,
+  setSubtaskTitle,
   deleteSubtask,
 } from "../store/subtaskStore.js";
 import { breakdownTaskWithAI } from "../store/aiStore.js";
@@ -42,6 +44,7 @@ export function renderTaskCard(task, handlers = {}) {
   const {
     onToggleCompleted,
     onDelete,
+    onEditTask,
     onStatusChange,
     onListChange,
     onDueDateChange,
@@ -92,12 +95,13 @@ export function renderTaskCard(task, handlers = {}) {
       <h3 class="task-card__title">
         <a class="task-card__title-link" href="/task/${task.id}" data-link>${safeTitle}</a>
       </h3>
+      <button type="button" class="task-card__edit" aria-label="Редагувати «${safeTitle}»">✎</button>
       <button type="button" class="task-card__trash" aria-label="Перемістити «${safeTitle}» в кошик">
         ${TRASH_ICON_SVG}
       </button>
     </div>
 
-    ${noteHtml}
+    <div class="task-card__note-slot">${noteHtml}</div>
 
     <div class="task-card__tags">
       <ul class="task-card__tag-list">${tagsHtml}</ul>
@@ -151,6 +155,7 @@ export function renderTaskCard(task, handlers = {}) {
 
   wireCompletedCheckbox(card, task, onToggleCompleted);
   wireTrashButton(card, task, onDelete);
+  wireEditTask(card, task, onEditTask);
   wireStatusSelect(card, task, onStatusChange);
   wireListSelect(card, task, onListChange);
   wireDueDate(card, task, onDueDateChange);
@@ -197,6 +202,81 @@ function wireTrashButton(card, task, onDelete) {
       trashButton.disabled = false;
       window.alert("Не вдалося видалити задачу. Спробуйте ще раз.");
     }
+  });
+}
+
+// Клік по «✎» — назва (<h3>) і нотатка (слот поруч, завжди є в
+// розмітці, навіть порожній) міняються разом на форму: текстове
+// поле + textarea. На відміну від інлайн-редагування підзадачі
+// (SubtaskItem.js) чи імені в акаунті (AccountMenu.js) тут два
+// поля одразу й окрема кнопка «Зберегти» — просто «клікнув повз»
+// не мало б випадково зберігати ще не завершену нотатку.
+function wireEditTask(card, task, onEditTask) {
+  const editButton = card.querySelector(".task-card__edit");
+
+  editButton.addEventListener("click", () => {
+    const titleHeading = card.querySelector(".task-card__title");
+    if (!titleHeading) return; // вже редагується
+
+    const noteSlot = card.querySelector(".task-card__note-slot");
+    const originalTitleHTML = titleHeading.innerHTML;
+    const originalNoteHTML = noteSlot.innerHTML;
+
+    titleHeading.innerHTML = `<input type="text" class="task-card__edit-title-input" value="${escapeHtml(task.title)}" />`;
+    const titleInput = titleHeading.querySelector(".task-card__edit-title-input");
+
+    noteSlot.innerHTML = `
+      <textarea class="task-card__edit-note-input" rows="2" placeholder="Додаткові деталі…">${escapeHtml(task.note || "")}</textarea>
+      <div class="task-card__edit-actions">
+        <button type="button" class="task-card__edit-save">Зберегти</button>
+        <button type="button" class="task-card__edit-cancel">Скасувати</button>
+      </div>
+    `;
+    const noteInput = noteSlot.querySelector(".task-card__edit-note-input");
+    const saveButton = noteSlot.querySelector(".task-card__edit-save");
+    const cancelButton = noteSlot.querySelector(".task-card__edit-cancel");
+
+    titleInput.focus();
+    titleInput.select();
+
+    function restore() {
+      titleHeading.innerHTML = originalTitleHTML;
+      noteSlot.innerHTML = originalNoteHTML;
+    }
+
+    cancelButton.addEventListener("click", restore);
+
+    titleInput.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") restore();
+    });
+    noteInput.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") restore();
+    });
+
+    saveButton.addEventListener("click", async () => {
+      if (!onEditTask) return restore();
+
+      const nextTitle = titleInput.value.trim();
+      if (!nextTitle) {
+        window.alert("Назва задачі не може бути порожньою.");
+        return;
+      }
+
+      saveButton.disabled = true;
+      cancelButton.disabled = true;
+
+      try {
+        await onEditTask(task, { title: nextTitle, note: noteInput.value.trim() });
+        // Успіх: onEditTask сам перечитує задачу й перемальовує
+        // картку заново (той самий підхід, що й у решти handlers) —
+        // тут DOM більше не чіпаємо.
+      } catch (err) {
+        console.error(err);
+        saveButton.disabled = false;
+        cancelButton.disabled = false;
+        window.alert("Не вдалося зберегти зміни. Спробуйте ще раз.");
+      }
+    });
   });
 }
 

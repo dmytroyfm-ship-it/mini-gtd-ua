@@ -9,8 +9,8 @@
 import { renderSubtaskItem } from "./SubtaskItem.js";
 
 export function renderSubtaskList(subtasks, handlers = {}) {
-  const { onToggle, onDelete, onAdd, onDueDateChange, onAddTag, detailed } = handlers;
-  const itemHandlers = { onToggle, onDelete, onDueDateChange, onAddTag, detailed };
+  const { onToggle, onDelete, onAdd, onDueDateChange, onAddTag, onEditTitle, detailed } = handlers;
+  const itemHandlers = { onToggle, onDelete, onDueDateChange, onAddTag, onEditTitle, detailed };
 
   const wrapper = document.createElement("div");
   wrapper.className = "subtask-list-block";

@@ -12,6 +12,7 @@
 
 import {
   getTasks,
+  updateTask,
   setTaskCompleted,
   moveTaskToTrash,
   setTaskStatus,
@@ -40,6 +41,7 @@ export function createListPage({ list, title, emptyText }) {
           {
             onToggleCompleted: handleToggleCompleted,
             onDelete: handleDelete,
+            onEditTask: handleEditTask,
             onStatusChange: handleStatusChange,
             onListChange: handleListChange,
             onDueDateChange: handleDueDateChange,
@@ -65,6 +67,11 @@ export function createListPage({ list, title, emptyText }) {
 
     async function handleDelete(task) {
       await moveTaskToTrash(task.id);
+      await refreshList();
+    }
+
+    async function handleEditTask(task, values) {
+      await updateTask(task.id, values);
       await refreshList();
     }
 
