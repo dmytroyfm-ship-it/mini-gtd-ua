@@ -23,6 +23,7 @@ import {
   setSubtaskTags,
   deleteSubtask,
 } from "../store/subtaskStore.js";
+import { breakdownTaskWithAI } from "../store/aiStore.js";
 import { renderSubtaskList } from "./SubtaskList.js";
 
 function escapeHtml(value) {
@@ -133,7 +134,10 @@ export function renderTaskCard(task, handlers = {}) {
     </div>
 
     <div class="task-card__subtasks">
-      <p class="task-card__subtasks-title">Підзадачі</p>
+      <div class="task-card__subtasks-header">
+        <p class="task-card__subtasks-title">Підзадачі</p>
+        <button type="button" class="task-card__ai-breakdown">✨ Розбити на кроки</button>
+      </div>
       <p class="task-card__subtasks-loading">Завантаження…</p>
     </div>
   `;
@@ -149,6 +153,7 @@ export function renderTaskCard(task, handlers = {}) {
   wireListSelect(card, task, onListChange);
   wireDueDate(card, task, onDueDateChange);
   wireAddTag(card, task, onAddTag);
+  wireAiBreakdown(card, task, detailedSubtasks);
   loadSubtasks(card, task, detailedSubtasks);
 
   return card;
@@ -306,6 +311,34 @@ function wireAddTag(card, task, onAddTag) {
       }
     });
     input.addEventListener("blur", commit);
+  });
+}
+
+// «✨ Розбити на кроки» — надсилає назву задачі в ai-assist/
+// (Groq), отримує 3-5 кроків і зберігає кожен звичайною
+// addSubtask() (RLS-захищена, той самий шлях, що й ручне додавання
+// підзадачі) — сама функція в базу не пише нічого.
+function wireAiBreakdown(card, task, detailedSubtasks) {
+  const button = card.querySelector(".task-card__ai-breakdown");
+  const idleLabel = button.textContent;
+
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    button.textContent = "Розбиваю…";
+
+    try {
+      const steps = await breakdownTaskWithAI(task.title);
+      for (const step of steps) {
+        await addSubtask(task.id, step);
+      }
+      loadSubtasks(card, task, detailedSubtasks);
+    } catch (err) {
+      console.error(err);
+      window.alert("Не вдалося розбити задачу на кроки. Спробуйте ще раз.");
+    } finally {
+      button.disabled = false;
+      button.textContent = idleLabel;
+    }
   });
 }
 
