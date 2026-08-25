@@ -138,7 +138,9 @@ export function renderTaskCard(task, handlers = {}) {
         <p class="task-card__subtasks-title">Підзадачі</p>
         <button type="button" class="task-card__ai-breakdown">✨ Розбити на кроки</button>
       </div>
-      <p class="task-card__subtasks-loading">Завантаження…</p>
+      <div class="task-card__subtasks-content">
+        <p class="task-card__subtasks-loading">Завантаження…</p>
+      </div>
     </div>
   `;
 
@@ -342,9 +344,13 @@ function wireAiBreakdown(card, task, detailedSubtasks) {
   });
 }
 
+// Викликається і при першому рендері картки, і повторно після
+// «✨ Розбити на кроки» — тому завжди звертається до стабільного
+// .task-card__subtasks-content (замінює весь його вміст), а не до
+// плейсхолдера «Завантаження…», якого при повторному виклику вже
+// нема в DOM.
 function loadSubtasks(card, task, detailedSubtasks) {
-  const block = card.querySelector(".task-card__subtasks");
-  const loading = block.querySelector(".task-card__subtasks-loading");
+  const content = card.querySelector(".task-card__subtasks-content");
 
   getSubtasks(task.id)
     .then((subtasks) => {
@@ -364,10 +370,13 @@ function loadSubtasks(card, task, detailedSubtasks) {
           : undefined,
         detailed: detailedSubtasks,
       });
-      loading.replaceWith(list);
+      content.replaceChildren(list);
     })
     .catch((err) => {
       console.error(err);
-      loading.textContent = "Не вдалося завантажити підзадачі. Спробуйте оновити сторінку.";
+      const error = document.createElement("p");
+      error.className = "task-card__subtasks-loading";
+      error.textContent = "Не вдалося завантажити підзадачі. Спробуйте оновити сторінку.";
+      content.replaceChildren(error);
     });
 }
