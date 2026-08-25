@@ -6,19 +6,23 @@
 // supabase/migrations/20260825010000_setup_daily_reminder_cron.sql)
 // і сама надсилає повідомлення користувачам.
 //
-// Формує повний список задач на день, а не лише лічильники — серед
-// активних (не в кошику, не виконаних) задач:
+// Формує повний список задач на день — усі активні (не в кошику, не
+// виконані) задачі зі списків «Вхідні» й «Задачі» (list: inbox/next
+// — те, що справді на порядку денному; «Колись», «Читати/Дивитись»
+// і «Архів» свідомо відкладені самим користувачем, у щоденний
+// дайджест не потрапляють), розкладені по блоках:
 //   • прострочені   — due_date < сьогодні
 //   • на сьогодні    — due_date = сьогодні
 //   • на завтра      — due_date = завтра ("до дедлайну 1 день")
-//   • термінові      — status = "urgent" (незалежно від дедлайну —
-//                      попадає в один з блоків вище за датою, якщо
-//                      вона є, або в окремий блок «термінові без
-//                      дедлайну», якщо дедлайну нема чи він далі, ніж
-//                      завтра); рядок такої задачі додатково
-//                      позначається 🔴, в якому б блоці не опинився.
-// Нема жодної задачі, що підпадає під ці критерії, чи нема прив'язки
-// Telegram — мовчки нічого не надсилає.
+//   • термінові      — status = "urgent", якщо дедлайн не потрапив
+//                      у жоден з блоків вище (чи дедлайну нема);
+//                      термінова задача, що вже в одному з блоків
+//                      вище за датою, лишається там, лише рядок
+//                      додатково позначається 🔴.
+//   • інші           — решта задач із «Вхідні»/«Задачі», що не
+//                      підпали під жоден критерій вище.
+// Немає жодної задачі в цих двох списках чи нема прив'язки Telegram
+// — мовчки нічого не надсилає.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -72,13 +76,14 @@ function formatDueDate(dateStr: string): string {
 }
 
 type Task = { id: string; user_id: string; title: string; due_date: string | null; status: string | null };
-type Bucket = "overdue" | "today" | "tomorrow" | "urgent";
+type Bucket = "overdue" | "today" | "tomorrow" | "urgent" | "other";
 
 function bucketOf(task: Task, today: string, tomorrow: string): Bucket {
   if (task.due_date && task.due_date < today) return "overdue";
   if (task.due_date === today) return "today";
   if (task.due_date === tomorrow) return "tomorrow";
-  return "urgent"; // потрапив у вибірку лише через status = "urgent"
+  if (task.status === "urgent") return "urgent";
+  return "other";
 }
 
 function formatTaskLine(task: Task): string {
@@ -92,11 +97,12 @@ const BUCKET_TITLES: Record<Bucket, string> = {
   today: "⏰ Дедлайн сьогодні",
   tomorrow: "📅 Дедлайн завтра",
   urgent: "🔴 Термінові (без дедлайну поруч)",
+  other: "🗒️ Інші задачі",
 };
-const BUCKET_ORDER: Bucket[] = ["overdue", "today", "tomorrow", "urgent"];
+const BUCKET_ORDER: Bucket[] = ["overdue", "today", "tomorrow", "urgent", "other"];
 
 function buildMessage(tasks: Array<Task & { __bucket: Bucket }>): string {
-  const grouped: Record<Bucket, Task[]> = { overdue: [], today: [], tomorrow: [], urgent: [] };
+  const grouped: Record<Bucket, Task[]> = { overdue: [], today: [], tomorrow: [], urgent: [], other: [] };
   for (const task of tasks) grouped[task.__bucket].push(task);
   // Найстаріші прострочені — першими, щоб одразу впадали в очі.
   grouped.overdue.sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""));
@@ -106,7 +112,7 @@ function buildMessage(tasks: Array<Task & { __bucket: Bucket }>): string {
   );
 
   return (
-    `🔔 Доброго ранку! Задачі на сьогодні:\n\n${sections.join("\n\n")}\n\n` +
+    `🔔 Доброго ранку! Ваші задачі:\n\n${sections.join("\n\n")}\n\n` +
     `Натисніть сюди, щоб відкрити планувальник: ${APP_URL}`
   );
 }
@@ -130,7 +136,8 @@ Deno.serve(async (req) => {
     .select("id, user_id, title, due_date, status")
     .is("deleted_at", null)
     .eq("completed", false)
-    .or(`due_date.lte.${tomorrow},status.eq.urgent`);
+    .in("list", ["inbox", "next"])
+    .order("created_at", { ascending: true });
 
   if (error) {
     console.error(error);
