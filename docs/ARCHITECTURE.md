@@ -285,6 +285,58 @@ Telegram-бота. Кроки, де фігурують секрети чи Teleg
 8. Відкрити `/integrations` у застосунку → «Згенерувати код
    прив'язки» → перейти за посиланням у Telegram → готово.
 
+### Щоденне нагадування — потребує ручного налаштування
+
+[supabase/functions/daily-reminder/index.ts](../supabase/functions/daily-reminder/index.ts)
+— окрема Edge Function, яка не приймає нічого від Telegram (на
+відміну від `telegram-webhook/`), а сама щодня о 09:00 за київським
+часом перевіряє `tasks` (активні, не виконані, є `due_date`),
+рахує окремо прострочені (`due_date < сьогодні`) і задачі на
+сьогодні (`due_date = сьогодні`) для кожного `user_id`, і якщо є
+хоч одна — надсилає повідомлення в прив'язаний Telegram-чат
+(`telegram_links`, той самий принцип, що й у боті): «🔔 Доброго
+ранку! У вас N задач на сьогодні і M прострочених…» із посиланням
+на сайт. Немає задач із дедлайном чи нема прив'язки Telegram —
+мовчки нічого не надсилає.
+
+Розклад — [pg_cron](https://github.com/citusdata/pg_cron) +
+[pg_net](https://github.com/supabase/pg_net) (обидва — стандартні
+розширення Postgres у Supabase, увімкнені прямо в SQL-міграції
+нижче): щодня о 06:00 UTC (= 09:00 в Україні влітку, 08:00 взимку —
+pg_cron не знає про літній/зимовий час, різниця в годину визнана
+прийнятною для нагадування) `pg_cron` виконує `net.http_post()` на
+адресу функції. Захист від чужих запитів — `CRON_SECRET` у
+заголовку `x-cron-secret`, той самий принцип, що й
+`TELEGRAM_WEBHOOK_SECRET` у боті.
+
+**Розгортання (ручні кроки — секрети й SQL я не бачу й не
+виконую):**
+
+1. Придумати `CRON_SECRET` (`openssl rand -hex 24`).
+2. Задати секрет функції:
+   ```bash
+   supabase secrets set CRON_SECRET=<той_самий_рядок>
+   ```
+3. Задеплоїти функцію:
+   ```bash
+   supabase functions deploy daily-reminder
+   ```
+4. Виконати міграцію
+   [20260825010000_setup_daily_reminder_cron.sql](../supabase/migrations/20260825010000_setup_daily_reminder_cron.sql)
+   у Supabase SQL Editor — **перед запуском** замінити
+   `REPLACE_WITH_YOUR_CRON_SECRET` у самому SQL-файлі (в редакторі,
+   не в git) на той самий рядок, що й у кроці 1–2.
+5. Перевірити, що завдання справді заплановане:
+   ```sql
+   select * from cron.job where jobname = 'daily-reminder-9am-kyiv';
+   ```
+6. За бажанням — перевірити функцію одразу, не чекаючи 9 ранку
+   (підставивши свій `CRON_SECRET`):
+   ```bash
+   curl -X POST "https://ufjkundsaelfstfxslck.supabase.co/functions/v1/daily-reminder" \
+     -H "x-cron-secret: <той_самий_рядок>"
+   ```
+
 ## 2. Структура папок
 
 ```
@@ -358,12 +410,15 @@ GTD додаток/
 ├── scripts/
 │   └── serve.py                 — локальний сервер з SPA-fallback
 ├── supabase/
-│   ├── config.toml               — потрібен лише для деплою Edge Function нижче
+│   ├── config.toml               — потрібен лише для деплою Edge Functions нижче
 │   ├── functions/
-│   │   └── telegram-webhook/
-│   │       └── index.ts          — приймає Update від Telegram, створює задачу
-│   │                             (текст чи Whisper-транскрипція голосового),
-│   │                             відповідає в чат (Deno, service_role key)
+│   │   ├── telegram-webhook/
+│   │   │   └── index.ts          — приймає Update від Telegram, створює задачу
+│   │   │                         (текст чи Whisper-транскрипція голосового),
+│   │   │                         відповідає в чат (Deno, service_role key)
+│   │   └── daily-reminder/
+│   │       └── index.ts          — щодня о 9:00 (pg_cron) перевіряє прострочені
+│   │                             задачі й задачі на сьогодні, шле нагадування
 │   └── migrations/
 │       ├── 20260824000000_create_tasks_table.sql
 │       │                          — схема tasks + RLS (виконано на реальному проєкті)
@@ -376,8 +431,11 @@ GTD додаток/
 │       │                          — status: картка + дошка Kanban, спільне поле (виконано)
 │       ├── 20260824040000_add_due_date_and_tags_to_subtasks.sql
 │       │                          — due_date + tags для subtasks, /task/:id (виконано)
-│       └── 20260825000000_create_telegram_links_table.sql
-│                                  — telegram_links: chat_id ↔ user_id (потребує виконання)
+│       ├── 20260825000000_create_telegram_links_table.sql
+│       │                          — telegram_links: chat_id ↔ user_id (виконано)
+│       └── 20260825010000_setup_daily_reminder_cron.sql
+│                                  — pg_cron+pg_net: щоденний виклик daily-reminder
+│                                  (потребує виконання — заміни секрет перед запуском)
 ├── docs/
 │   ├── PRD.md                    — опис продукту
 │   └── ARCHITECTURE.md           — цей документ
@@ -599,6 +657,11 @@ dropdown «Статус», тож зі змінити статус можна і
   Storage), якого в проєкті ще немає — це б означало ще один
   ручний крок налаштування, як-от Supabase-проєкт чи Google OAuth.
   Посилання/Notion/Google Drive (URL-типи) — уже повністю робочі.
+- **Щоденне нагадування в Telegram** — код повністю готовий
+  (`daily-reminder/`), але не запрацює, доки не пройдені ручні
+  кроки з розділу 1 («Щоденне нагадування — потребує ручного
+  налаштування»): секрет, деплой функції, SQL-міграція з
+  розкладом pg_cron.
 - **AI-функції** (окрім розпізнавання голосу для Telegram-бота) —
   не реалізовані.
 - **Тестування** — автоматичних тестів поки немає. Вхід через

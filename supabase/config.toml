@@ -1,6 +1,6 @@
-# Конфігурація Supabase CLI — потрібна лише для деплою Edge Function
-# (supabase/functions/telegram-webhook/); на решту проєкту (SQL-
-# міграції виконуються вручну в SQL Editor) не впливає.
+# Конфігурація Supabase CLI — потрібна лише для деплою Edge Functions
+# (supabase/functions/); на решту проєкту (SQL-міграції виконуються
+# вручну в SQL Editor) не впливає.
 
 project_id = "ufjkundsaelfstfxslck"
 
@@ -10,4 +10,9 @@ project_id = "ufjkundsaelfstfxslck"
 # запитів — окремий секрет TELEGRAM_WEBHOOK_SECRET, який звіряє сам
 # код функції (див. index.ts).
 [functions.telegram-webhook]
+verify_jwt = false
+
+# Той самий принцип — цю функцію викликає не Telegram, а pg_cron
+# зсередини бази (jsonb-запит без JWT), захист — CRON_SECRET.
+[functions.daily-reminder]
 verify_jwt = false
