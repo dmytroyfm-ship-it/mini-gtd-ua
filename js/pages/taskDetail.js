@@ -1,8 +1,8 @@
 // Сторінка детального перегляду задачі (/task/:id).
 // Велика картка (TaskCard.js з detail: true) з деталізованими
 // підзадачами (власні дедлайн і теги — detailedSubtasks: true) +
-// блок «Матеріали» під нею. Мутації самої задачі — той самий
-// підхід, що й на «Вхідних»: виклик функції стору, тоді
+// блоки «Матеріали» й «Коментарі» під нею. Мутації самої задачі —
+// той самий підхід, що й на «Вхідних»: виклик функції стору, тоді
 // перечитування задачі й перемальовування картки.
 
 import {
@@ -16,6 +16,7 @@ import {
 } from "../store/taskStore.js";
 import { renderTaskCard } from "../components/TaskCard.js";
 import { renderMaterialsBlock } from "../components/MaterialsBlock.js";
+import { renderCommentsBlock } from "../components/CommentsBlock.js";
 import { navigate } from "../router.js";
 
 export async function renderTaskDetail(root, params) {
@@ -75,6 +76,7 @@ export async function renderTaskDetail(root, params) {
     content.appendChild(cardWrapper);
 
     content.appendChild(renderMaterialsBlock(task.id));
+    content.appendChild(renderCommentsBlock(task.id));
   }
 
   async function handleToggleCompleted(t, completed) {

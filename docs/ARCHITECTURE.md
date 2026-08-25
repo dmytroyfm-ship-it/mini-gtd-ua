@@ -105,7 +105,7 @@ Supabase.
   фільтрацію самостійно; `getTasks("inbox")` сортує за `created_at`
   спаданням (найновіші зверху).
 
-### Підзадачі й матеріали — підключено
+### Підзадачі, матеріали й коментарі — підключено
 
 [supabase/migrations/20260824010000_create_subtasks_and_materials_tables.sql](../supabase/migrations/20260824010000_create_subtasks_and_materials_tables.sql)
 додає таблиці `subtasks` і `materials`, обидві з `task_id →
@@ -136,6 +136,19 @@ tasks(id) on delete cascade` (видалення задачі видаляє й 
 міні-теги підзадачі, видно лише на сторінці `/task/:id`
 (`detailedSubtasks: true`); у компактних картках («Вхідні»,
 «Задачі», дошка) підзадача лишається простим чекліст-пунктом.
+
+**`comments`** ([20260825050000_create_comments_table.sql](../supabase/migrations/20260825050000_create_comments_table.sql))
+— вільні текстові нотатки до задачі: `id`, `task_id`, `user_id`,
+`text`, `created_at`. Той самий принцип RLS, що й у
+`subtasks`/`materials` (INSERT перевіряє, що `task_id` належить
+цьому користувачу). Підключено —
+[js/store/commentStore.js](../js/store/commentStore.js)
+(`getComments`, `addComment`, `deleteComment`) і
+[CommentsBlock.js](../js/components/CommentsBlock.js) — форма
+(textarea + «Додати») і список, найновіші зверху. Показується лише
+на сторінці `/task/:id`, поруч із «Матеріалами» — не в компактних
+картках («Вхідні», дошка тощо), як і підзадачі з дедлайном/тегами
+вище.
 
 RLS для обох — той самий принцип, що й у `tasks` (`auth.uid() =
 user_id`), але для INSERT/UPDATE є ще одна умова: `task_id` має
@@ -512,7 +525,7 @@ GTD додаток/
 │   ├── task-card.css                — сама картка задачі + вкладені підзадачі
 │   ├── trash.css                    — стилі рядків кошика (кнопки дій)
 │   ├── board.css                     — дошка Kanban (.page--wide, колонки, drag-over)
-│   ├── task-detail.css                — /task/:id: «Назад», блок «Матеріали»
+│   ├── task-detail.css                — /task/:id: «Назад», блоки «Матеріали»/«Коментарі»
 │   ├── integrations.css                — картка Telegram-інтеграції (/integrations)
 │   ├── ai-suggestion.css               — кнопка + картка «Що зробити зараз?»
 │   ├── sources.css                     — форма + список джерел (/sources)
@@ -536,6 +549,8 @@ GTD додаток/
 │   │   │                             setSubtaskTags, deleteSubtask)
 │   │   ├── materialStore.js         — матеріали (getMaterials, addMaterial,
 │   │   │                             deleteMaterial)
+│   │   ├── commentStore.js          — коментарі (getComments, addComment,
+│   │   │                             deleteComment)
 │   │   ├── authStore.js            — сесія через Supabase Auth (getSession, signInWithGoogle, signOut)
 │   │   ├── telegramStore.js        — прив'язка Telegram (getTelegramLink,
 │   │   │                             generateLinkCode, unlinkTelegram)
@@ -561,6 +576,7 @@ GTD додаток/
 │   │   ├── SubtaskItem.js             — один рядок підзадачі (+ міні-теги/дедлайн
 │   │   │                             у детальному режимі)
 │   │   ├── MaterialsBlock.js           — блок «Матеріали»: кнопки додавання + сітка
+│   │   ├── CommentsBlock.js             — блок «Коментарі»: форма + список (/task/:id)
 │   │   ├── TrashList.js             — картка кошика / «Кошик порожній.»
 │   │   ├── TrashItem.js              — рядок кошика («Відновити» / «Видалити назавжди»)
 │   │   ├── IntegrationsCard.js         — картка Telegram: статус, код прив'язки, відв'язати
@@ -627,8 +643,10 @@ GTD додаток/
 │       │                          — sources + feed_items + RLS (потребує виконання)
 │       ├── 20260825030000_setup_storage_bucket.sql
 │       │                          — бакет user-uploads + RLS (потребує виконання)
-│       └── 20260825040000_replace_notion_with_onedrive.sql
-│                                  — materials.type: notion → onedrive (потребує виконання)
+│       ├── 20260825040000_replace_notion_with_onedrive.sql
+│       │                          — materials.type: notion → onedrive (потребує виконання)
+│       └── 20260825050000_create_comments_table.sql
+│                                  — comments + RLS (потребує виконання)
 ├── docs/
 │   ├── PRD.md                    — опис продукту
 │   └── ARCHITECTURE.md           — цей документ
