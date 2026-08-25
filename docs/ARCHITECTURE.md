@@ -120,14 +120,16 @@ tasks(id) on delete cascade` (видалення задачі видаляє й 
   `setSubtaskDueDate`, `setSubtaskTags`, `deleteSubtask`) і UI в
   картці задачі та на сторінці `/task/:id` (розділ 3).
 - **`materials`** — прикріплені посилання/файли: `id`, `task_id`,
-  `user_id`, `type` (`link`/`file`/`notion`/`gdrive`, з `check`),
-  `url`, `title`, `created_at`. Підключено —
-  [js/store/materialStore.js](../js/store/materialStore.js)
+  `user_id`, `type` (`link`/`file`/`onedrive`/`gdrive`, з `check` —
+  спершу тут був `notion` замість `onedrive`, замінено міграцією
+  [20260825040000_replace_notion_with_onedrive.sql](../supabase/migrations/20260825040000_replace_notion_with_onedrive.sql)
+  на прохання користувача), `url`, `title`, `created_at`.
+  Підключено — [js/store/materialStore.js](../js/store/materialStore.js)
   (`getMaterials`, `addMaterial`, `deleteMaterial`) і блок
-  «Матеріали» на сторінці `/task/:id`. Реально працюють лише
-  URL-типи (`link`/`notion`/`gdrive`) — `file` у схемі є, але UI
-  його не створює: реальне завантаження файлів вимагає окремого
-  сховища (Supabase Storage), якого в проєкті ще немає (розділ 5).
+  «Матеріали» на сторінці `/task/:id`. `link`/`onedrive`/`gdrive` —
+  URL-типи (просто посилання); `file` («Зображення»/«Файл») —
+  реальне завантаження в Supabase Storage (розділ 1, «Supabase
+  Storage»).
 
 [supabase/migrations/20260824040000_add_due_date_and_tags_to_subtasks.sql](../supabase/migrations/20260824040000_add_due_date_and_tags_to_subtasks.sql)
 додає до `subtasks` `due_date` і `tags` — власний міні-дедлайн і
@@ -623,8 +625,10 @@ GTD додаток/
 │       │                          (потребує виконання — заміни секрет перед запуском)
 │       ├── 20260825020000_create_sources_and_feed_items_tables.sql
 │       │                          — sources + feed_items + RLS (потребує виконання)
-│       └── 20260825030000_setup_storage_bucket.sql
-│                                  — бакет user-uploads + RLS (потребує виконання)
+│       ├── 20260825030000_setup_storage_bucket.sql
+│       │                          — бакет user-uploads + RLS (потребує виконання)
+│       └── 20260825040000_replace_notion_with_onedrive.sql
+│                                  — materials.type: notion → onedrive (потребує виконання)
 ├── docs/
 │   ├── PRD.md                    — опис продукту
 │   └── ARCHITECTURE.md           — цей документ
