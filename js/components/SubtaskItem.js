@@ -116,6 +116,15 @@ export function renderSubtaskItem(subtask, handlers = {}) {
   return row;
 }
 
+// Розтягує textarea назви по висоті під фактичний вміст — той самий
+// прийом, що й autoGrowTitle() у TaskCard.js (однорядковий <input>
+// на довгій назві + input.select() показував лише хвіст тексту біля
+// курсора, ховаючи початок).
+function autoGrow(textarea) {
+  textarea.style.height = "auto";
+  textarea.style.height = `${textarea.scrollHeight}px`;
+}
+
 // Клік по «✎» — рядок .subtask-item__title міняється на текстове
 // поле, зберігає і по Enter, і по blur (звичайний клік повз поле не
 // мав би скасовувати введене — той самий принцип, що й у
@@ -129,11 +138,17 @@ function wireSubtaskEditTitle(row, subtask, onEditTitle) {
 
     const originalText = titleSpan.textContent;
 
-    const input = document.createElement("input");
-    input.type = "text";
+    // <textarea>, не <input>: на довгій назві однорядкове поле разом
+    // з input.select() показувало лише хвіст тексту біля курсора
+    // (початок ховався за прокруткою) — textarea переносить рядки й
+    // росте по висоті через autoGrow(), тож видно весь текст одразу.
+    const input = document.createElement("textarea");
+    input.rows = 1;
     input.className = "subtask-item__title-input";
     input.value = originalText;
     titleSpan.replaceWith(input);
+    autoGrow(input);
+    input.addEventListener("input", () => autoGrow(input));
     input.focus();
     input.select();
 

@@ -273,7 +273,9 @@
 }
 
 .account-menu__name-input {
+  display: block;
   width: 100%;
+  box-sizing: border-box;
   padding: 0.25rem 0.4rem;
   background: var(--bg-raised);
   border: 1px solid var(--line);
@@ -281,6 +283,15 @@
   color: var(--ink);
   font-family: var(--font-body);
   font-size: 0.88rem;
+  line-height: 1.4;
+  /* textarea, не input: на довгому імені в цій вузькій панелі
+     (240px) текст переноситься й поле росте по висоті (autoGrow() в
+     AccountMenu.js), а не ховається за горизонтальною прокруткою
+     однорядкового поля. */
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .account-menu__email {

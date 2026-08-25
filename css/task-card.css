@@ -677,6 +677,7 @@
 
 .subtask-item__title-input {
   width: 100%;
+  box-sizing: border-box;
   padding: 0.15rem 0.4rem;
   background: var(--bg-raised);
   border: 1px solid var(--accent-dim);
@@ -684,6 +685,14 @@
   color: var(--ink);
   font-family: var(--font-body);
   font-size: 0.87rem;
+  line-height: 1.4;
+  /* textarea, не input: на довгій назві текст переноситься й поле
+     росте по висоті (autoGrow() в SubtaskItem.js), а не ховається за
+     горизонтальною прокруткою однорядкового поля. */
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .subtask-add {

@@ -16,6 +16,13 @@ function escapeHtml(value) {
   return container.innerHTML;
 }
 
+// Розтягує textarea імені по висоті під фактичний вміст — той самий
+// прийом, що й у TaskCard.js / SubtaskItem.js.
+function autoGrow(textarea) {
+  textarea.style.height = "auto";
+  textarea.style.height = `${textarea.scrollHeight}px`;
+}
+
 function initialsOf(session) {
   const source = session.name || session.email;
   return source.trim().charAt(0).toUpperCase();
@@ -69,14 +76,22 @@ export function renderAccountMenu() {
     const nameRow = header.querySelector(".account-menu__name-row");
     const currentName = session.name || "";
 
+    // <textarea>, не <input>: на довгому імені однорядкове поле
+    // разом з input.select() показувало лише хвіст тексту біля
+    // курсора (початок ховався за прокруткою в вузькій панелі
+    // меню) — textarea переносить рядки й росте по висоті через
+    // autoGrow(), тож видно все ім'я одразу (той самий фікс, що й у
+    // TaskCard.js / SubtaskItem.js).
     nameRow.innerHTML = `
       <form class="account-menu__name-form">
-        <input type="text" class="account-menu__name-input" value="${escapeHtml(currentName)}" placeholder="Ім'я та прізвище" maxlength="80" />
+        <textarea rows="1" class="account-menu__name-input" placeholder="Ім'я та прізвище" maxlength="80">${escapeHtml(currentName)}</textarea>
       </form>
     `;
 
     const input = nameRow.querySelector(".account-menu__name-input");
     const form = nameRow.querySelector(".account-menu__name-form");
+    autoGrow(input);
+    input.addEventListener("input", () => autoGrow(input));
     input.focus();
     input.select();
 
@@ -122,6 +137,14 @@ export function renderAccountMenu() {
       if (event.key === "Escape") {
         cancelled = true;
         render();
+        return;
+      }
+      // textarea, на відміну від input, не сабмітить форму по Enter
+      // сама — доводиться зберігати явно (і не вставляти новий рядок,
+      // ім'я однорядкове за змістом).
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        save();
       }
     });
   }
