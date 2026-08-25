@@ -1,0 +1,160 @@
+/* Сторінка «Джерела» (js/pages/sources.js): форма додавання
+   (SourceForm.js) + список (SourceList.js/SourceItem.js).
+   Кольори — лише з токенів у css/style.css. */
+
+.source-form-card {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem 1.4rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.source-form {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.source-form__platform,
+.source-form__handle {
+  padding: 0.6rem 0.8rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+}
+
+.source-form__platform {
+  flex: 0 0 auto;
+}
+
+.source-form__handle {
+  flex: 1 1 220px;
+}
+
+.source-form__handle::placeholder {
+  color: var(--ink-dim);
+}
+
+.source-form__submit {
+  flex: 0 0 auto;
+  padding: 0.6rem 1.15rem;
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.source-form__submit:hover {
+  background: var(--accent-dim);
+}
+
+.source-form__submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.source-form__error {
+  margin: 0.6rem 0 0;
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+.source-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.source-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1.1rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.source-item__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.source-item__platform {
+  align-self: flex-start;
+  padding: 0.1rem 0.55rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.source-item__handle {
+  color: var(--ink);
+  font-size: 0.92rem;
+  word-break: break-all;
+}
+
+.source-item__id {
+  color: var(--ink-dim);
+  font-size: 0.74rem;
+}
+
+.source-item__id code {
+  padding: 0.05rem 0.35rem;
+  background: var(--bg-raised);
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.source-item__delete {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.source-item__delete:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.source-item__delete:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (max-width: 480px) {
+  .source-form__platform,
+  .source-form__handle,
+  .source-form__submit {
+    flex: 1 1 100%;
+  }
+}

@@ -383,6 +383,95 @@ supabase functions deploy ai-assist
 текст (`window.alert(...)`) користувачу, ніякого сирого тексту від
 Groq на екрані.
 
+### «Джерела» і «Стрічка» — потребує ручного налаштування
+
+Дві нові сторінки під один сценарій: «Джерела» (`/sources`) —
+керуєш підписками (YouTube/Telegram/Instagram/Threads/Reddit/
+Twitter/RSS); «Стрічка» (`/feed`) — сюди стікаються пости з цих
+джерел, зібрані зовнішнім парсером (Apify, Firecrawl тощо, сам
+парсинг — поза застосунком, ми лише приймаємо результат).
+
+**«Джерела»** — звичайний RLS-захищений CRUD
+([sourceStore.js](../js/store/sourceStore.js),
+[SourceForm.js](../js/components/SourceForm.js),
+[SourceList.js](../js/components/SourceList.js)/[SourceItem.js](../js/components/SourceItem.js)),
+той самий підхід, що й «Вхідні»/«Кошик». Кожен рядок показує свій
+`id` (`ID для вебхука`) — саме його потрібно підставити в
+налаштування зовнішнього парсера, щоб приймальний вебхук знав, до
+якого джерела належить пост.
+
+**«Стрічка»** — записи в `feed_items` вставляє лише
+[supabase/functions/feed-webhook/index.ts](../supabase/functions/feed-webhook/index.ts)
+(service_role, в обхід RLS — на момент запиту немає Supabase-сесії,
+лише `source_id`); клієнт (`feedStore.js`) лише читає (`status =
+"new"`) і міняє статус. Очікуваний JSON — один об'єкт, масив або
+`{ "items": [...] }`:
+```json
+{
+  "source_id": "<ID із «Джерела»>",
+  "external_id": "опційно — id відео/твіту/посту, для дедупу",
+  "author": "опційно",
+  "title": "обов'язково",
+  "text": "опційно",
+  "url": "обов'язково",
+  "published_at": "опційно, ISO-дата"
+}
+```
+`user_id` функція сама бере з `sources` за `source_id` — зовнішній
+парсер його не знає й не повинен. Дедуп — унікальний індекс
+`(source_id, external_id)`: той самий пост, надісланий вдруге,
+тихо ігнорується (не помилка). Захист — `FEED_WEBHOOK_SECRET`
+(заголовок `x-feed-webhook-secret` **або** `?secret=...` у URL —
+деяким no-code інструментам зручніше з query, ніж з кастомними
+заголовками).
+
+**Переклад** — при кожному вхідному пості функція одразу питає Groq
+(`_shared/groqChat.ts`, той самий ключ і модель, що й в
+`ai-assist`) перекласти заголовок і текст на українську (якщо вони
+вже українською — Groq повертає без змін); результат — `title_uk`/
+`text_uk`, саме їх показує картка стрічки (`title`/`text` —
+оригінал, лишається в базі про запас, в UI не використовується).
+Переклад не критичний для збереження поста: якщо Groq недоступний,
+пост однаково зберігається — з оригінальним текстом замість
+перекладеного (`console.error`, без відмови всього запиту).
+
+**Дії над постом** (`FeedCard.js`): «✅ В Inbox» створює задачу
+(`title` = `title_uk`, `note` = посилання на оригінал — щоб не
+загубити джерело) і ставить `feed_items.status = "added"`; «✖
+Пропустити» — просто `status = "skipped"`; обидва прибирають пост
+зі стрічки (там показуються лише `status = "new"`). «🔗 Відкрити» —
+звичайне посилання на `url`, нічого не змінює.
+
+**Розгортання (ручні кроки):**
+
+1. Виконати міграцію
+   [20260825020000_create_sources_and_feed_items_tables.sql](../supabase/migrations/20260825020000_create_sources_and_feed_items_tables.sql)
+   у Supabase SQL Editor.
+2. Придумати `FEED_WEBHOOK_SECRET` (`openssl rand -hex 24`) і
+   задати секрет:
+   ```bash
+   supabase secrets set FEED_WEBHOOK_SECRET=<той_самий_рядок>
+   ```
+3. Задеплоїти функцію:
+   ```bash
+   supabase functions deploy feed-webhook
+   ```
+4. Додати хоч одне джерело на `/sources`, скопіювати його `id`.
+5. Налаштувати зовнішній парсер (Apify/Firecrawl/будь-що інше, що
+   вміє надіслати POST) слати результат на
+   `https://ufjkundsaelfstfxslck.supabase.co/functions/v1/feed-webhook`
+   з `source_id` = скопійований `id` і заголовком
+   `x-feed-webhook-secret: <той_самий_рядок>` (чи `?secret=...`).
+6. Перевірити вручну (заміни `<...>` на свої значення):
+   ```bash
+   curl -X POST "https://ufjkundsaelfstfxslck.supabase.co/functions/v1/feed-webhook" \
+     -H "Content-Type: application/json" \
+     -H "x-feed-webhook-secret: <той_самий_рядок>" \
+     -d '{"source_id":"<id_джерела>","title":"Тестовий пост","text":"Hello from a test post","url":"https://example.com"}'
+   ```
+   Пост має з'явитись на `/feed` — і, якщо `WHISPER_API_KEY`
+   (Groq) уже налаштований, з перекладеним текстом.
+
 ## 2. Структура папок
 
 ```
@@ -400,7 +489,9 @@ GTD додаток/
 │   ├── board.css                     — дошка Kanban (.page--wide, колонки, drag-over)
 │   ├── task-detail.css                — /task/:id: «Назад», блок «Матеріали»
 │   ├── integrations.css                — картка Telegram-інтеграції (/integrations)
-│   └── ai-suggestion.css               — кнопка + картка «Що зробити зараз?»
+│   ├── ai-suggestion.css               — кнопка + картка «Що зробити зараз?»
+│   ├── sources.css                     — форма + список джерел (/sources)
+│   └── feed.css                        — картки постів стрічки (/feed)
 ├── js/
 │   ├── app.js                 — точка входу: чекає initAuth(), монтує навігацію й роутер
 │   ├── router.js               — маршрути, доступ, History API, рендер сторінок
@@ -423,8 +514,11 @@ GTD додаток/
 │   │   ├── authStore.js            — сесія через Supabase Auth (getSession, signInWithGoogle, signOut)
 │   │   ├── telegramStore.js        — прив'язка Telegram (getTelegramLink,
 │   │   │                             generateLinkCode, unlinkTelegram)
-│   │   └── aiStore.js               — проксі до ai-assist/ (breakdownTaskWithAI,
-│   │                             suggestNextTaskWithAI)
+│   │   ├── aiStore.js               — проксі до ai-assist/ (breakdownTaskWithAI,
+│   │   │                             suggestNextTaskWithAI)
+│   │   ├── sourceStore.js           — джерела (getSources, addSource, deleteSource)
+│   │   └── feedStore.js             — стрічка (getFeedItems, skipFeedItem,
+│   │                             markFeedItemAdded)
 │   ├── components/
 │   │   ├── Nav.js                — навігація (меню, бургер, монтує AccountMenu.js)
 │   │   ├── AccountMenu.js          — меню акаунта: аватар/ім'я/пошта,
@@ -443,7 +537,12 @@ GTD додаток/
 │   │   ├── TrashList.js             — картка кошика / «Кошик порожній.»
 │   │   ├── TrashItem.js              — рядок кошика («Відновити» / «Видалити назавжди»)
 │   │   ├── IntegrationsCard.js         — картка Telegram: статус, код прив'язки, відв'язати
-│   │   └── NextTaskSuggestion.js        — кнопка + картка «Що зробити зараз?» (AI)
+│   │   ├── NextTaskSuggestion.js        — кнопка + картка «Що зробити зараз?» (AI)
+│   │   ├── SourceForm.js                — форма додавання джерела (платформа + handle)
+│   │   ├── SourceList.js                 — список джерел / порожній стан
+│   │   ├── SourceItem.js                  — рядок джерела (платформа, handle, id, видалити)
+│   │   ├── FeedList.js                     — список постів стрічки / порожній стан
+│   │   └── FeedCard.js                      — картка поста: мета, заголовок/текст, 3 дії
 │   └── pages/
 │       ├── auth.js              — сторінка логіну (/auth)
 │       ├── inbox.js             — сторінка «Вхідні» (форма + список карток)
@@ -456,12 +555,17 @@ GTD додаток/
 │       ├── board.js             — дошка Kanban (/board): колонки, drag-and-drop
 │       ├── taskDetail.js         — детальний перегляд задачі (/task/:id)
 │       ├── trash.js             — сторінка «Кошик» (/trash)
-│       └── integrations.js       — сторінка «Інтеграції» (/integrations)
+│       ├── integrations.js       — сторінка «Інтеграції» (/integrations)
+│       ├── sources.js             — сторінка «Джерела» (/sources)
+│       └── feed.js                 — сторінка «Стрічка» (/feed)
 ├── scripts/
 │   └── serve.py                 — локальний сервер з SPA-fallback
 ├── supabase/
 │   ├── config.toml               — потрібен лише для деплою Edge Functions нижче
 │   ├── functions/
+│   │   ├── _shared/
+│   │   │   └── groqChat.ts        — спільний виклик Groq chat completions (JSON-
+│   │   │                         режим), для ai-assist/ і feed-webhook/
 │   │   ├── telegram-webhook/
 │   │   │   └── index.ts          — приймає Update від Telegram, створює задачу
 │   │   │                         (текст чи Whisper-транскрипція голосового),
@@ -469,9 +573,12 @@ GTD додаток/
 │   │   ├── daily-reminder/
 │   │   │   └── index.ts          — щодня о 9:00 (pg_cron) перевіряє прострочені
 │   │   │                         задачі й задачі на сьогодні, шле нагадування
-│   │   └── ai-assist/
-│   │       └── index.ts          — проксі до Groq: розбити задачу на кроки /
-│   │                             обрати задачу для швидкої перемоги
+│   │   ├── ai-assist/
+│   │   │   └── index.ts          — проксі до Groq: розбити задачу на кроки /
+│   │   │                         обрати задачу для швидкої перемоги
+│   │   └── feed-webhook/
+│   │       └── index.ts          — приймає пости від зовнішнього парсера
+│   │                             (Apify/Firecrawl), перекладає, зберігає у feed_items
 │   └── migrations/
 │       ├── 20260824000000_create_tasks_table.sql
 │       │                          — схема tasks + RLS (виконано на реальному проєкті)
@@ -486,9 +593,11 @@ GTD додаток/
 │       │                          — due_date + tags для subtasks, /task/:id (виконано)
 │       ├── 20260825000000_create_telegram_links_table.sql
 │       │                          — telegram_links: chat_id ↔ user_id (виконано)
-│       └── 20260825010000_setup_daily_reminder_cron.sql
-│                                  — pg_cron+pg_net: щоденний виклик daily-reminder
-│                                  (потребує виконання — заміни секрет перед запуском)
+│       ├── 20260825010000_setup_daily_reminder_cron.sql
+│       │                          — pg_cron+pg_net: щоденний виклик daily-reminder
+│       │                          (потребує виконання — заміни секрет перед запуском)
+│       └── 20260825020000_create_sources_and_feed_items_tables.sql
+│                                  — sources + feed_items + RLS (потребує виконання)
 ├── docs/
 │   ├── PRD.md                    — опис продукту
 │   └── ARCHITECTURE.md           — цей документ
@@ -603,6 +712,8 @@ Supabase SDK).
 | `/list/read_watch`     | Читати / Дивитись      | лише авторизованим | список із реальної бази (без форми додавання) |
 | `/list/someday`        | Колись                 | лише авторизованим | список із реальної бази (без форми додавання) |
 | `/list/archive`        | Архів                  | лише авторизованим | список із реальної бази (без форми додавання) |
+| `/sources`             | Джерела                | лише авторизованим | форма додавання + список підписок, id для вебхука |
+| `/feed`                | Стрічка                | лише авторизованим | картки постів: В Inbox / Пропустити / Відкрити |
 | `/trash`               | Кошик                  | лише авторизованим | список видалених + відновлення / остаточне видалення |
 | `/integrations`        | Інтеграції             | лише авторизованим | картка Telegram: статус прив'язки, код, відв'язати |
 
@@ -720,6 +831,12 @@ dropdown «Статус», тож зі змінити статус можна і
   але не запрацюють, доки функцію не задеплоєно
   (`supabase functions deploy ai-assist`) — жодних нових секретів
   не треба, той самий ключ Groq, що й для розпізнавання голосу.
+- **«Джерела» / «Стрічка»** — код готовий (сторінки, `feed-webhook/`,
+  переклад через Groq), але не запрацює, доки не пройдені ручні
+  кроки з розділу 1 («Джерела і Стрічка — потребує ручного
+  налаштування»): SQL-міграція, секрет, деплой функції, і сам
+  зовнішній парсер (Apify/Firecrawl тощо) — його налаштування вже
+  повністю поза цим проєктом, ми лише приймаємо результат.
 - **Тестування** — автоматичних тестів поки немає. Вхід через
   Google і збереження задач перевірені вручну; автоматичної
   перевірки, що RLS справді не пускає одного користувача до задач

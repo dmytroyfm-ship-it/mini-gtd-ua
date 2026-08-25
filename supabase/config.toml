@@ -16,3 +16,9 @@ verify_jwt = false
 # зсередини бази (jsonb-запит без JWT), захист — CRON_SECRET.
 [functions.daily-reminder]
 verify_jwt = false
+
+# Той самий принцип — цю функцію викликає зовнішній парсер
+# (Apify/Firecrawl тощо), а не наш застосунок і не Supabase-сесія,
+# захист — FEED_WEBHOOK_SECRET.
+[functions.feed-webhook]
+verify_jwt = false

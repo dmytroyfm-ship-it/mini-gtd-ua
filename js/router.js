@@ -12,6 +12,8 @@ import { renderArchive } from "./pages/archive.js";
 import { renderBoard } from "./pages/board.js";
 import { renderTaskDetail } from "./pages/taskDetail.js";
 import { renderTrash } from "./pages/trash.js";
+import { renderSources } from "./pages/sources.js";
+import { renderFeed } from "./pages/feed.js";
 import { renderIntegrations } from "./pages/integrations.js";
 import { renderAuth } from "./pages/auth.js";
 import { getSession } from "./store/authStore.js";
@@ -28,6 +30,8 @@ const ROUTES = [
   { path: "/list/read_watch", title: "Читати / Дивитись", render: renderReadWatch, protected: true },
   { path: "/list/someday", title: "Колись", render: renderSomeday, protected: true },
   { path: "/list/archive", title: "Архів", render: renderArchive, protected: true },
+  { path: "/sources", title: "Джерела", render: renderSources, protected: true },
+  { path: "/feed", title: "Стрічка", render: renderFeed, protected: true },
   { path: "/trash", title: "Кошик", render: renderTrash, protected: true },
   // hideFromNav — маршрут доступний (посилання, кнопки), але не
   // захаращує головне меню; потрапити на нього можна лише з меню

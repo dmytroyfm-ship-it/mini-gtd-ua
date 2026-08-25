@@ -17,54 +17,17 @@
 // захищені store (subtaskStore.js/taskStore.js), ця функція лише
 // звертається до Groq і повертає відповідь.
 //
-// Ключ Groq — той самий WHISPER_API_KEY, що вже налаштований для
-// розпізнавання голосу в telegram-webhook (один Groq-акаунт, один
-// ключ працює на будь-який їхній ендпоінт, не лише Whisper) —
-// новий секрет заводити не треба.
+// Ключ Groq і сам виклик chat completions — спільні з feed-webhook/
+// (переклад постів стрічки), винесені в _shared/groqChat.ts.
 
-const GROQ_API_KEY = Deno.env.get("WHISPER_API_KEY") ?? "";
-const GROQ_API_BASE_URL = Deno.env.get("WHISPER_API_BASE_URL") ?? "https://api.groq.com/openai/v1";
-// Groq регулярно знімає з підтримки старі моделі (так і сталось із
-// попереднім дефолтом, llama-3.3-70b-versatile — 404 model_not_found
-// уже за кілька годин після деплою). Якщо ця модель теж колись
-// зникне — досить задати свій секрет AI_MODEL, код міняти не треба.
-const AI_MODEL = Deno.env.get("AI_MODEL") ?? "openai/gpt-oss-120b";
-
-async function callGroq(systemPrompt: string, userPrompt: string): Promise<Record<string, unknown>> {
-  const res = await fetch(`${GROQ_API_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${GROQ_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: AI_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.4,
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`Groq API (${res.status}): ${await res.text()}`);
-  }
-
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Groq не повернув відповіді.");
-
-  return JSON.parse(content);
-}
+import { callGroqJSON } from "../_shared/groqChat.ts";
 
 async function handleBreakdown(title: unknown): Promise<string[]> {
   if (typeof title !== "string" || !title.trim()) {
     throw new Error("Порожня назва задачі.");
   }
 
-  const result = await callGroq(
+  const result = await callGroqJSON(
     "Ти — асистент планування задач у GTD-застосунку. Розбий задачу " +
       "користувача на 3-5 простих, конкретних, виконуваних кроків " +
       "українською мовою. Відповідай ЛИШЕ JSON-об'єктом формату " +
@@ -89,7 +52,7 @@ async function handleNextTask(tasks: unknown): Promise<{ taskId: string; reason:
   const candidates = tasks.slice(0, 10) as Array<{ id: string; title: string }>;
   const list = candidates.map((t, i) => `${i + 1}. [${t.id}] ${t.title}`).join("\n");
 
-  const result = await callGroq(
+  const result = await callGroqJSON(
     "Ти — асистент продуктивності в GTD-застосунку. З наведеного списку " +
       "задач вибери ОДНУ, яку варто зробити прямо зараз для швидкої " +
       "перемоги (найпростіша, найшвидша чи найважливіша — на твій " +
