@@ -4,19 +4,19 @@
 // deleteMaterial) — той самий підхід, що й підзадачі в
 // TaskCard.js (PROJECT_RULES, п.6 — бізнес-логіка в store, не тут).
 //
-// «Зображення» / «Файл» / «З папки на ПК» — це реальне завантаження
-// файлів, а для цього потрібне окреме сховище (Supabase Storage),
-// якого в проєкті ще немає. Кнопки на місці (як і просили), але
-// чесно пояснюють, що ще не підключено, замість того, щоб мовчки
-// нічого не робити чи прикидатись, що зберегли.
+// «Зображення» / «Файл» — реальне завантаження в Supabase Storage
+// (бакет user-uploads, той самий, що й фото акаунта — storageStore.js),
+// шлях {user_id}/materials/{task_id}/{файл}. «З папки на ПК» — окрема
+// кнопка з попередньої версії прибрана: по суті те саме, що «Файл».
 
 import { getMaterials, addMaterial, deleteMaterial } from "../store/materialStore.js";
+import { uploadFile } from "../store/storageStore.js";
+import { getSession } from "../store/authStore.js";
 
 const ADD_BUTTONS = [
   { type: "link", label: "Посилання" },
-  { type: "file", label: "Зображення", needsStorage: true },
-  { type: "file", label: "Файл", needsStorage: true },
-  { type: "file", label: "З папки на ПК", needsStorage: true },
+  { type: "file", label: "Зображення", upload: true, accept: "image/*" },
+  { type: "file", label: "Файл", upload: true, accept: "*/*" },
   { type: "notion", label: "Notion" },
   { type: "gdrive", label: "Google Drive" },
 ];
@@ -46,16 +46,31 @@ export function renderMaterialsBlock(taskId) {
   const actions = wrapper.querySelector(".materials-block__actions");
   const grid = wrapper.querySelector(".materials-block__grid");
 
+  // Один прихований інпут на обидві кнопки завантаження
+  // («Зображення»/«Файл») — accept підставляється перед кожним
+  // кліком залежно від того, яку саме кнопку натиснули.
+  const fileInput = document.createElement("input");
+  fileInput.type = "file";
+  fileInput.hidden = true;
+  wrapper.appendChild(fileInput);
+
+  let pendingLabel = "";
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    fileInput.value = "";
+    if (file) handleUploadFile(file, pendingLabel);
+  });
+
   ADD_BUTTONS.forEach((btn) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "materials-block__add-button";
     button.textContent = btn.label;
     button.addEventListener("click", () => {
-      if (btn.needsStorage) {
-        window.alert(
-          `«${btn.label}» поки не підключено: для завантаження файлів потрібне окреме сховище (Supabase Storage), якого в проєкті ще немає. Якщо файл уже доступний за посиланням — додай його через «Посилання».`
-        );
+      if (btn.upload) {
+        pendingLabel = btn.label;
+        fileInput.accept = btn.accept || "*/*";
+        fileInput.click();
         return;
       }
       handleAddLink(btn.type, btn.label);
@@ -137,6 +152,24 @@ export function renderMaterialsBlock(taskId) {
     } catch (err) {
       console.error(err);
       window.alert("Не вдалося додати матеріал. Спробуйте ще раз.");
+    }
+  }
+
+  async function handleUploadFile(file, label) {
+    const session = getSession();
+    if (!session) {
+      window.alert("Немає активної сесії — увійдіть ще раз.");
+      return;
+    }
+
+    try {
+      const path = `${session.id}/materials/${taskId}/${Date.now()}-${file.name}`;
+      const url = await uploadFile(path, file);
+      await addMaterial(taskId, { type: "file", url, title: file.name });
+      await refresh();
+    } catch (err) {
+      console.error(err);
+      window.alert(`Не вдалося завантажити «${label.toLowerCase()}». Спробуйте ще раз.`);
     }
   }
 

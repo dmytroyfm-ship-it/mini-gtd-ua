@@ -8,16 +8,17 @@
 // оновлюється через supabase.auth.onAuthStateChange.
 
 import { supabase } from "../lib/supabaseClient.js";
+import { uploadFile } from "./storageStore.js";
 
 let session = null;
 let readyPromise = null;
 const listeners = new Set();
 
 // Підписка на будь-яку зміну сесії (AccountMenu.js) — потрібна,
-// бо syncGoogleAvatar() нижче оновлює сесію асинхронно, вже після
-// того, як сторінка й меню акаунта могли встигнути відрендеритись
-// без фото; без цього фото з'явилось би лише після наступного
-// переходу між сторінками (refreshNav викликається лише тоді).
+// бо uploadAvatar()/updateDisplayName() змінюють сесію вже після
+// першого рендеру меню акаунта; без цього новий стан з'явився б
+// лише після наступного переходу між сторінками (refreshNav
+// викликається лише тоді).
 export function subscribe(callback) {
   listeners.add(callback);
   return () => listeners.delete(callback);
@@ -27,49 +28,22 @@ function applySession(nextSession) {
   if (!nextSession) {
     session = null;
   } else {
-    // Ім'я й фото — з Google-профілю (Supabase кладе їх у
-    // user_metadata після OAuth-логіну) або, якщо користувач сам
-    // задав своє ім'я через updateDisplayName()/фото через
-    // syncGoogleAvatar(), звідти — теж лежить у тому самому
-    // user_metadata, нових полів не треба.
+    // Ім'я — з Google-профілю (Supabase кладе full_name/name в
+    // user_metadata після OAuth-логіну) або власне, задане через
+    // updateDisplayName(). Фото — лише власне, завантажене через
+    // uploadAvatar() (Google-фото свідомо не підтягуємо — рішення
+    // користувача: простіше й надійніше, ніж обхід бага GoTrue з
+    // provider_token, який був тут раніше).
     const metadata = nextSession.user.user_metadata || {};
     session = {
       id: nextSession.user.id,
       email: nextSession.user.email,
       name: metadata.full_name || metadata.name || null,
-      avatarUrl: metadata.avatar_url || metadata.picture || null,
+      avatarUrl: metadata.avatar_url || null,
     };
   }
 
   listeners.forEach((callback) => callback());
-}
-
-// Відомий баг Supabase (GoTrue інколи не переносить "picture" від
-// Google в user_metadata.avatar_url — обговорення supabase/supabase
-// #2167, #4047): обходимо його самі. provider_token — це реальний
-// access-токен Google, короткочасно доступний лише в самій події
-// SIGNED_IN (Supabase його ніде не зберігає, після перезавантаження
-// сторінки він уже недоступний) — використовуємо його рівно один
-// раз одразу після входу, щоб напряму запитати профіль у Google
-// (userinfo-ендпоінт, той самий "profile" scope, що вже й так
-// запитаний у signInWithGoogle()) і дописати фото в user_metadata
-// самостійно, через звичайний updateUser().
-async function syncGoogleAvatar(providerToken) {
-  try {
-    const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-      headers: { Authorization: `Bearer ${providerToken}` },
-    });
-    if (!res.ok) return;
-
-    const profile = await res.json();
-    if (!profile.picture) return;
-
-    const { data, error } = await supabase.auth.updateUser({ data: { avatar_url: profile.picture } });
-    if (error) throw error;
-    applySession(data.user ? { user: data.user } : null);
-  } catch (err) {
-    console.error("Не вдалося отримати фото профілю Google:", err);
-  }
 }
 
 // Викликати один раз при старті застосунку — чекає, поки Supabase
@@ -84,12 +58,8 @@ export function initAuth() {
     applySession(data.session);
   });
 
-  supabase.auth.onAuthStateChange((event, nextSession) => {
+  supabase.auth.onAuthStateChange((_event, nextSession) => {
     applySession(nextSession);
-
-    if (event === "SIGNED_IN" && nextSession?.provider_token) {
-      syncGoogleAvatar(nextSession.provider_token);
-    }
   });
 
   return readyPromise;
@@ -109,21 +79,38 @@ export async function updateDisplayName(name) {
   applySession(data.user ? { user: data.user } : null);
 }
 
+// Завантажує власне фото в Supabase Storage (бакет user-uploads,
+// шлях {user_id}/avatar.<розширення> — той самий файл щоразу
+// перезаписується, upsert у storageStore.js) і зберігає публічне
+// посилання в user_metadata.avatar_url, як і updateDisplayName()
+// вище для імені.
+export async function uploadAvatar(file) {
+  if (!session) throw new Error("Немає активної сесії — увійдіть ще раз.");
+
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const path = `${session.id}/avatar.${ext}`;
+  const publicUrl = await uploadFile(path, file);
+  // Той самий шлях перезаписується щоразу (upsert) — без ?v=...
+  // браузер міг би далі показувати стару закешовану версію під тим
+  // самим URL.
+  const avatarUrl = `${publicUrl}?v=${Date.now()}`;
+
+  const { data, error } = await supabase.auth.updateUser({ data: { avatar_url: avatarUrl } });
+  if (error) throw error;
+  applySession(data.user ? { user: data.user } : null);
+}
+
 export async function signInWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo: `${window.location.origin}/auth`,
-      // select_account — примусово показує екран вибору акаунта
-      // щоразу (signOut() виходить лише із Supabase, не з самого
-      // Google). consent — окремо змушує Google по-новому
-      // підтвердити самі права доступу; без нього доданий нижче
-      // scope "profile" підхоплювався мовчки, без реального
-      // перезапиту дозволів, і фото так і не з'являлось.
-      queryParams: { prompt: "select_account consent" },
-      // Без явного "profile" Google не віддає фото профілю —
-      // user_metadata.avatar_url/picture були відсутні.
-      scopes: "email profile",
+      // Без цього Google, якщо в браузері вже є активна сесія,
+      // мовчки підтверджує той самий акаунт замість показу вибору
+      // (signOut() виходить лише із Supabase, не з самого Google) —
+      // prompt=select_account примусово показує екран вибору
+      // акаунта щоразу.
+      queryParams: { prompt: "select_account" },
     },
   });
 

@@ -292,7 +292,7 @@
   text-overflow: ellipsis;
 }
 
-.account-menu__photo-note-trigger,
+.account-menu__photo-trigger,
 .account-menu__link,
 .account-menu__logout {
   display: block;
@@ -310,7 +310,7 @@
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.account-menu__photo-note-trigger:hover,
+.account-menu__photo-trigger:hover,
 .account-menu__link:hover,
 .account-menu__logout:hover {
   background: var(--bg-raised);
@@ -324,4 +324,9 @@
 .account-menu__logout:hover {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.account-menu__photo-trigger:disabled {
+  opacity: 0.6;
+  cursor: default;
 }

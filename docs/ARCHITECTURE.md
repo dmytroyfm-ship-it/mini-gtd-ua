@@ -172,18 +172,41 @@ user_id`), але для INSERT/UPDATE є ще одна умова: `task_id` м
 
 **Меню акаунта** ([AccountMenu.js](../js/components/AccountMenu.js)) —
 аватар-кнопка в навігації замість того, що раніше висіло прямо в
-барі (пошта + «Вийти»): ім'я та фото беруться з Google-профілю
-(`user_metadata.full_name`/`avatar_url` — Supabase кладе їх туди
-сама після OAuth-логіну, жодного окремого запиту не треба), нема
-фото — кружечок з першою літерою імені/пошти. Ім'я можна
-перезаписати своїм (клік → інпут → `authStore.updateDisplayName()`
-→ `supabase.auth.updateUser({ data: { full_name } })`) — звичайний
-метод Supabase Auth, без нової таблиці. Завантаження власного фото
-— свідомо не реалізовано: як і файли в «Матеріалах», це вимагає
-Supabase Storage, якого в проєкті ще немає (розділ 5); кнопка
-«Змінити фото» на місці, чесно пояснює причину замість мовчазної
-бездії. Посилання на «Інтеграції» перенесено сюди з головного меню
-— зайва вкладка там, якщо нею користуються рідко.
+барі (пошта + «Вийти»): ім'я — з Google-профілю
+(`user_metadata.full_name`, Supabase кладе його туди сама після
+OAuth-логіну) або власне, задане через `authStore
+.updateDisplayName()`. Фото — **лише власне**, завантажене через
+`authStore.uploadAvatar()` (Supabase Storage — розділ нижче); нема
+фото — кружечок з першою літерою імені/пошти. Google-фото свідомо
+не підтягуємо автоматично: перша версія так і робила через
+`provider_token`, обходячи баг Supabase (GoTrue не завжди переносить
+`picture` в `user_metadata` — discussions supabase/supabase #2167,
+#4047), але після живого тестування виявилось простіше й надійніше
+дати користувачу самому завантажити своє фото, ніж далі гнатись за
+цим обхідним шляхом. Посилання на «Інтеграції» перенесено сюди з
+головного меню — зайва вкладка там, якщо нею користуються рідко.
+
+### Supabase Storage — фото акаунта й файли в «Матеріалах»
+
+Один спільний бакет `user-uploads` (публічний на читання — інакше
+фото профілю чи матеріал не відкрились би прямим посиланням
+(`<img src>`) без Supabase-сесії в кожному запиті), обслуговує два
+місця: [AccountMenu.js](../js/components/AccountMenu.js) (фото
+акаунта, шлях `{user_id}/avatar.<розширення>` — той самий файл
+перезаписується щоразу, `upsert`) і
+[MaterialsBlock.js](../js/components/MaterialsBlock.js) («Зображення»/
+«Файл», шлях `{user_id}/materials/{task_id}/{файл}`). Сам виклик
+завантаження — спільний [storageStore.js](../js/store/storageStore.js)
+(`uploadFile(path, file)`, повертає публічне посилання).
+
+Запис обмежує RLS `storage.objects` — перша частина шляху (`(storage
+.foldername(name))[1]`) має дорівнювати `auth.uid()`, той самий
+принцип «лише своє», що й у решті таблиць проєкту, лише застосований
+до файлової системи бакета, а не до звичайної таблиці. Виконати
+[20260825030000_setup_storage_bucket.sql](../supabase/migrations/20260825030000_setup_storage_bucket.sql)
+у Supabase SQL Editor — і фото/файли одразу запрацюють, окремих
+секретів чи деплою функцій не треба (це не Edge Function, працює
+напряму через `supabase-js`, як і решта клієнтських store).
 
 ### Telegram-бот — підключено
 
@@ -517,8 +540,10 @@ GTD додаток/
 │   │   ├── aiStore.js               — проксі до ai-assist/ (breakdownTaskWithAI,
 │   │   │                             suggestNextTaskWithAI)
 │   │   ├── sourceStore.js           — джерела (getSources, addSource, deleteSource)
-│   │   └── feedStore.js             — стрічка (getFeedItems, skipFeedItem,
-│   │                             markFeedItemAdded)
+│   │   ├── feedStore.js             — стрічка (getFeedItems, skipFeedItem,
+│   │   │                             markFeedItemAdded)
+│   │   └── storageStore.js           — uploadFile(path, file) → публічне посилання
+│   │                             (Supabase Storage, бакет user-uploads)
 │   ├── components/
 │   │   ├── Nav.js                — навігація (меню, бургер, монтує AccountMenu.js)
 │   │   ├── AccountMenu.js          — меню акаунта: аватар/ім'я/пошта,
@@ -596,8 +621,10 @@ GTD додаток/
 │       ├── 20260825010000_setup_daily_reminder_cron.sql
 │       │                          — pg_cron+pg_net: щоденний виклик daily-reminder
 │       │                          (потребує виконання — заміни секрет перед запуском)
-│       └── 20260825020000_create_sources_and_feed_items_tables.sql
-│                                  — sources + feed_items + RLS (потребує виконання)
+│       ├── 20260825020000_create_sources_and_feed_items_tables.sql
+│       │                          — sources + feed_items + RLS (потребує виконання)
+│       └── 20260825030000_setup_storage_bucket.sql
+│                                  — бакет user-uploads + RLS (потребує виконання)
 ├── docs/
 │   ├── PRD.md                    — опис продукту
 │   └── ARCHITECTURE.md           — цей документ
@@ -814,13 +841,12 @@ dropdown «Статус», тож зі змінити статус можна і
 
 Свідомо відсутнє на цьому етапі — заплановано на наступні кроки:
 
-- **Реальне завантаження файлів у «Матеріали»** — кнопки
-  «Зображення» / «Файл» / «З папки на ПК» у `MaterialsBlock.js`
-  показують пояснення, чому це поки не працює, замість самої дії:
-  для справжнього завантаження потрібне окреме сховище (Supabase
-  Storage), якого в проєкті ще немає — це б означало ще один
-  ручний крок налаштування, як-от Supabase-проєкт чи Google OAuth.
-  Посилання/Notion/Google Drive (URL-типи) — уже повністю робочі.
+- **Supabase Storage (фото акаунта + файли в «Матеріалах»)** — код
+  готовий, але не запрацює, доки не виконана міграція
+  [20260825030000_setup_storage_bucket.sql](../supabase/migrations/20260825030000_setup_storage_bucket.sql)
+  (розділ 1, «Supabase Storage»); до того часу і «Змінити фото» в
+  меню акаунта, і «Зображення»/«Файл» у «Матеріалах» повертатимуть
+  помилку бази.
 - **Щоденне нагадування в Telegram** — код повністю готовий
   (`daily-reminder/`), але не запрацює, доки не пройдені ручні
   кроки з розділу 1 («Щоденне нагадування — потребує ручного

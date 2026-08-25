@@ -6,7 +6,7 @@
 // віддає дії в authStore.js, рішень про автентифікацію не приймає).
 
 import { navigate } from "../router.js";
-import { getSession, signOut, updateDisplayName, subscribe } from "../store/authStore.js";
+import { getSession, signOut, updateDisplayName, uploadAvatar, subscribe } from "../store/authStore.js";
 
 const AUTH_PATH = "/auth";
 
@@ -35,7 +35,8 @@ export function renderAccountMenu() {
     <button type="button" class="account-menu__trigger" aria-haspopup="true" aria-expanded="false" aria-label="Акаунт"></button>
     <div class="account-menu__panel" hidden>
       <div class="account-menu__header"></div>
-      <button type="button" class="account-menu__photo-note-trigger">Змінити фото</button>
+      <button type="button" class="account-menu__photo-trigger">Змінити фото</button>
+      <input type="file" class="account-menu__photo-input" accept="image/*" hidden />
       <a href="/integrations" data-link class="account-menu__link">Інтеграції</a>
       <button type="button" class="account-menu__logout">Вийти</button>
     </div>
@@ -44,7 +45,8 @@ export function renderAccountMenu() {
   const trigger = wrapper.querySelector(".account-menu__trigger");
   const panel = wrapper.querySelector(".account-menu__panel");
   const header = wrapper.querySelector(".account-menu__header");
-  const photoNoteTrigger = wrapper.querySelector(".account-menu__photo-note-trigger");
+  const photoTrigger = wrapper.querySelector(".account-menu__photo-trigger");
+  const photoInput = wrapper.querySelector(".account-menu__photo-input");
   const link = wrapper.querySelector(".account-menu__link");
   const logoutButton = wrapper.querySelector(".account-menu__logout");
 
@@ -147,10 +149,27 @@ export function renderAccountMenu() {
 
   trigger.addEventListener("click", togglePanel);
 
-  photoNoteTrigger.addEventListener("click", () => {
-    window.alert(
-      "Завантаження власного фото поки не підключено — для цього потрібне окреме сховище (Supabase Storage), якого в проєкті ще немає. Зараз показується фото з твого Google-акаунта."
-    );
+  photoTrigger.addEventListener("click", () => photoInput.click());
+
+  photoInput.addEventListener("change", async () => {
+    const file = photoInput.files[0];
+    photoInput.value = ""; // той самий файл можна буде вибрати ще раз (напр. після невдачі)
+    if (!file) return;
+
+    photoTrigger.disabled = true;
+    const idleLabel = photoTrigger.textContent;
+    photoTrigger.textContent = "Завантаження…";
+
+    try {
+      await uploadAvatar(file);
+      render();
+    } catch (err) {
+      console.error(err);
+      window.alert("Не вдалося завантажити фото. Спробуйте ще раз.");
+    } finally {
+      photoTrigger.disabled = false;
+      photoTrigger.textContent = idleLabel;
+    }
   });
 
   link.addEventListener("click", closePanel);
@@ -176,9 +195,9 @@ export function renderAccountMenu() {
     if (event.key === "Escape" && !panel.hidden) closePanel();
   });
 
-  // authStore.subscribe — не лише refreshNav(): фото профілю (Google
-  // передає його не одразу, окремим запитом уже після входу —
-  // authStore.js) прийде асинхронно, вже після першого рендеру.
+  // authStore.subscribe — не лише refreshNav(): ім'я/фото міняються
+  // асинхронно (updateDisplayName()/uploadAvatar()), в будь-який
+  // момент, не тільки при переході між сторінками.
   subscribe(render);
 
   render();
