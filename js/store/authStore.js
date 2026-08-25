@@ -70,15 +70,15 @@ export async function signInWithGoogle() {
     provider: "google",
     options: {
       redirectTo: `${window.location.origin}/auth`,
-      // Без цього Google, якщо в браузері вже є активна сесія,
-      // мовчки підтверджує той самий акаунт замість показу вибору
-      // (signOut() виходить лише із Supabase, не з самого Google) —
-      // prompt=select_account примусово показує екран вибору
-      // акаунта щоразу.
-      queryParams: { prompt: "select_account" },
-      // Без явного "profile" Google віддавав лише ім'я, без фото
-      // (user_metadata.avatar_url/picture — обидва були відсутні) —
-      // для AccountMenu.js потрібне саме фото.
+      // select_account — примусово показує екран вибору акаунта
+      // щоразу (signOut() виходить лише із Supabase, не з самого
+      // Google). consent — окремо змушує Google по-новому
+      // підтвердити самі права доступу; без нього доданий нижче
+      // scope "profile" підхоплювався мовчки, без реального
+      // перезапиту дозволів, і фото так і не з'являлось.
+      queryParams: { prompt: "select_account consent" },
+      // Без явного "profile" Google не віддає фото профілю —
+      // user_metadata.avatar_url/picture були відсутні.
       scopes: "email profile",
     },
   });

@@ -162,7 +162,14 @@ export function renderAccountMenu() {
   });
 
   document.addEventListener("click", (event) => {
-    if (!panel.hidden && !wrapper.contains(event.target)) closePanel();
+    // event.composedPath(), не event.target: клік по «Ім'я»
+    // синхронно замінює nameRow.innerHTML на поле вводу — сама
+    // кнопка, по якій клікнули, вже відʼєднана від DOM на момент,
+    // коли цей обробник (на document) отримує подію в фазі
+    // спливання, тож wrapper.contains(event.target) для неї
+    // помилково повертав би false, миттєво закриваючи панель.
+    // composedPath() лишає шлях таким, яким він був у момент кліку.
+    if (!panel.hidden && !event.composedPath().includes(wrapper)) closePanel();
   });
 
   document.addEventListener("keydown", (event) => {
