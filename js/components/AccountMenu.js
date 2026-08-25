@@ -6,7 +6,7 @@
 // віддає дії в authStore.js, рішень про автентифікацію не приймає).
 
 import { navigate } from "../router.js";
-import { getSession, signOut, updateDisplayName } from "../store/authStore.js";
+import { getSession, signOut, updateDisplayName, subscribe } from "../store/authStore.js";
 
 const AUTH_PATH = "/auth";
 
@@ -175,6 +175,11 @@ export function renderAccountMenu() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !panel.hidden) closePanel();
   });
+
+  // authStore.subscribe — не лише refreshNav(): фото профілю (Google
+  // передає його не одразу, окремим запитом уже після входу —
+  // authStore.js) прийде асинхронно, вже після першого рендеру.
+  subscribe(render);
 
   render();
 
