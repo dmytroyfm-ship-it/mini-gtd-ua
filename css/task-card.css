@@ -314,6 +314,7 @@
 .task-card__due {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
@@ -362,6 +363,22 @@
 .task-card__due-clear:hover {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.task-card__recurrence {
+  flex: 0 1 auto;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+}
+
+.task-card__recurrence:focus {
+  outline: none;
+  border-color: var(--accent-dim);
 }
 
 /* --- підзадачі --- */
@@ -607,6 +624,7 @@
   opacity: 0.6;
 }
 
+.subtask-item__edit,
 .subtask-item__delete {
   flex: 0 0 auto;
   display: inline-flex;
@@ -625,15 +643,30 @@
   transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
 
+.subtask-item:hover .subtask-item__edit,
 .subtask-item:hover .subtask-item__delete,
+.subtask-item:focus-within .subtask-item__edit,
 .subtask-item:focus-within .subtask-item__delete,
+.subtask-item__edit:focus-visible,
 .subtask-item__delete:focus-visible {
   opacity: 1;
 }
 
+.subtask-item__edit:hover,
 .subtask-item__delete:hover {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.subtask-item__title-input {
+  width: 100%;
+  padding: 0.15rem 0.4rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--accent-dim);
+  border-radius: 6px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.87rem;
 }
 
 .subtask-add {

@@ -19,9 +19,11 @@ import {
   updateTask,
   setTaskStatus,
   setTaskCompleted,
+  completeTask,
   moveTaskToTrash,
   setTaskList,
   setTaskDueDate,
+  setTaskRecurrence,
   setTaskTags,
 } from "../store/taskStore.js";
 import { renderTaskList } from "../components/TaskList.js";
@@ -59,6 +61,10 @@ export async function renderBoard(root) {
 
   const boardPage = root.querySelector(".board-page");
 
+  // Наповнюється в refreshBoard() — потрібен для completeTask() у
+  // moveTaskToColumn() нижче (drag-and-drop знає лише taskId).
+  let tasksById = new Map();
+
   const boardEl = document.createElement("div");
   boardEl.className = "board";
   boardPage.appendChild(boardEl);
@@ -70,6 +76,7 @@ export async function renderBoard(root) {
     onStatusChange: handleStatusChange,
     onListChange: handleListChange,
     onDueDateChange: handleDueDateChange,
+    onRecurrenceChange: handleRecurrenceChange,
     onAddTag: handleAddTag,
     draggable: true,
   };
@@ -88,6 +95,11 @@ export async function renderBoard(root) {
       boardEl.appendChild(error);
       return;
     }
+
+    // Перетягування (handleDrop) знає лише taskId, не повний
+    // об'єкт — а completeTask() нижче потребує саме його
+    // (title/note/list/tags/status/recurrence для нової задачі).
+    tasksById = new Map(tasks.map((task) => [task.id, task]));
 
     const buckets = { urgent: [], not_urgent: [], daily: [], done: [], cancelled: [], waiting: [] };
     tasks.forEach((task) => buckets[bucketOf(task)].push(task));
@@ -139,7 +151,12 @@ export async function renderBoard(root) {
   // пункту, є лише окремий чекбокс «виконано»).
   async function moveTaskToColumn(taskId, columnKey) {
     if (columnKey === "done") {
-      await setTaskCompleted(taskId, true);
+      // completeTask() потребує повний об'єкт задачі (для
+      // повторення — title/note/list/tags/status/recurrence нової
+      // задачі); tasksById заповнюється в refreshBoard().
+      const task = tasksById.get(taskId);
+      if (task) await completeTask(task);
+      else await setTaskCompleted(taskId, true);
     } else {
       // Перетягнута/перемкнута назад із «Виконаних» задача має
       // реально покинути цю колонку — bucketOf() інакше й далі
@@ -160,7 +177,8 @@ export async function renderBoard(root) {
   }
 
   async function handleToggleCompleted(task, completed) {
-    await setTaskCompleted(task.id, completed);
+    if (completed) await completeTask(task);
+    else await setTaskCompleted(task.id, false);
     await refreshBoard();
   }
 
@@ -186,6 +204,11 @@ export async function renderBoard(root) {
 
   async function handleDueDateChange(task, dueDate) {
     await setTaskDueDate(task.id, dueDate);
+    await refreshBoard();
+  }
+
+  async function handleRecurrenceChange(task, recurrence) {
+    await setTaskRecurrence(task.id, recurrence);
     await refreshBoard();
   }
 

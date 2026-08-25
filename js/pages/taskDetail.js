@@ -9,10 +9,12 @@ import {
   getTaskById,
   updateTask,
   setTaskCompleted,
+  completeTask,
   moveTaskToTrash,
   setTaskStatus,
   setTaskList,
   setTaskDueDate,
+  setTaskRecurrence,
   setTaskTags,
 } from "../store/taskStore.js";
 import { renderTaskCard } from "../components/TaskCard.js";
@@ -65,6 +67,7 @@ export async function renderTaskDetail(root, params) {
       onStatusChange: handleStatusChange,
       onListChange: handleListChange,
       onDueDateChange: handleDueDateChange,
+      onRecurrenceChange: handleRecurrenceChange,
       onAddTag: handleAddTag,
       detail: true,
       detailedSubtasks: true,
@@ -82,7 +85,12 @@ export async function renderTaskDetail(root, params) {
   }
 
   async function handleToggleCompleted(t, completed) {
-    await setTaskCompleted(t.id, completed);
+    // Повторювана задача (t.recurrence) — completeTask() створює
+    // нову задачу на наступну дату; лишаємось на цій самій сторінці
+    // (тепер вона показує вже виконану задачу), нову можна знайти
+    // в списку — без несподіваного переходу.
+    if (completed) await completeTask(t);
+    else await setTaskCompleted(t.id, false);
     await loadTask();
   }
 
@@ -109,6 +117,11 @@ export async function renderTaskDetail(root, params) {
 
   async function handleDueDateChange(t, dueDate) {
     await setTaskDueDate(t.id, dueDate);
+    await loadTask();
+  }
+
+  async function handleRecurrenceChange(t, recurrence) {
+    await setTaskRecurrence(t.id, recurrence);
     await loadTask();
   }
 

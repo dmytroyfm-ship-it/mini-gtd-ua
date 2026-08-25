@@ -10,10 +10,12 @@ import {
   addTask,
   updateTask,
   setTaskCompleted,
+  completeTask,
   moveTaskToTrash,
   setTaskStatus,
   setTaskList,
   setTaskDueDate,
+  setTaskRecurrence,
   setTaskTags,
 } from "../store/taskStore.js";
 import { suggestNextTaskWithAI } from "../store/aiStore.js";
@@ -44,6 +46,7 @@ export async function renderInbox(root) {
         onStatusChange: handleStatusChange,
         onListChange: handleListChange,
         onDueDateChange: handleDueDateChange,
+        onRecurrenceChange: handleRecurrenceChange,
         onAddTag: handleAddTag,
       });
     } catch (err) {
@@ -63,7 +66,12 @@ export async function renderInbox(root) {
   }
 
   async function handleToggleCompleted(task, completed) {
-    await setTaskCompleted(task.id, completed);
+    // Виконання повторюваної задачі (task.recurrence) саме створює
+    // нову задачу на наступну дату — completeTask() робить обидві
+    // дії разом; для звичайного зняття позначки чи задач без
+    // recurrence completeTask() поводиться як просте setTaskCompleted().
+    if (completed) await completeTask(task);
+    else await setTaskCompleted(task.id, false);
     await refreshList();
   }
 
@@ -93,6 +101,11 @@ export async function renderInbox(root) {
 
   async function handleDueDateChange(task, dueDate) {
     await setTaskDueDate(task.id, dueDate);
+    await refreshList();
+  }
+
+  async function handleRecurrenceChange(task, recurrence) {
+    await setTaskRecurrence(task.id, recurrence);
     await refreshList();
   }
 

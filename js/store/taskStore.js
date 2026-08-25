@@ -17,6 +17,7 @@
 // @property {boolean} completed
 // @property {"urgent"|"not_urgent"|"daily"|"cancelled"|"waiting"} status
 // @property {string|null} due_date
+// @property {"daily"|"weekly"|"monthly"|null} recurrence
 // @property {string|null} deleted_at
 // @property {string} created_at
 // @property {string} updated_at
@@ -97,6 +98,62 @@ export async function setTaskCompleted(id, completed) {
   const { error } = await supabase.from("tasks").update({ completed }).eq("id", id);
 
   if (error) throw error;
+}
+
+// recurrence: "daily" | "weekly" | "monthly" | null.
+export async function setTaskRecurrence(id, recurrence) {
+  const { error } = await supabase.from("tasks").update({ recurrence }).eq("id", id);
+
+  if (error) throw error;
+}
+
+function nextDueDate(dueDate, recurrence) {
+  // Немає дедлайну — рахуємо від сьогодні (немає іншої точки
+  // відліку для наступного повторення).
+  const base = dueDate ? new Date(`${dueDate}T00:00:00`) : new Date();
+
+  if (recurrence === "monthly") {
+    base.setMonth(base.getMonth() + 1);
+  } else if (recurrence === "weekly") {
+    base.setDate(base.getDate() + 7);
+  } else {
+    base.setDate(base.getDate() + 1);
+  }
+
+  return base.toISOString().slice(0, 10);
+}
+
+// Позначає задачу виконаною; якщо в неї задано recurrence — одразу
+// створює нову задачу на наступну дату (та сама назва/нотатка/
+// список/теги/статус/повторення), а цю лишає виконаною назавжди —
+// зберігається історія повторень, замість одного рядка, який
+// щоразу скидався б назад у невиконаний стан. Без recurrence —
+// звичайне setTaskCompleted(), без нової задачі.
+export async function completeTask(task) {
+  await setTaskCompleted(task.id, true);
+
+  if (!task.recurrence) return null;
+
+  const session = getSession();
+  if (!session) throw new Error("Немає активної сесії — увійдіть ще раз.");
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .insert({
+      user_id: session.id,
+      title: task.title,
+      note: task.note || "",
+      list: task.list,
+      tags: task.tags || [],
+      status: task.status,
+      due_date: nextDueDate(task.due_date, task.recurrence),
+      recurrence: task.recurrence,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
 // Статус — той самий dropdown у картці задачі й ті самі колонки

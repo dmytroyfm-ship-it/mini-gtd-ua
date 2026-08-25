@@ -48,6 +48,7 @@ export function renderTaskCard(task, handlers = {}) {
     onStatusChange,
     onListChange,
     onDueDateChange,
+    onRecurrenceChange,
     onAddTag,
     draggable,
     detail,
@@ -135,6 +136,12 @@ export function renderTaskCard(task, handlers = {}) {
       <span class="task-card__due-label">Дедлайн</span>
       <input type="date" class="task-card__due-input" value="${task.due_date || ""}" />
       <button type="button" class="task-card__due-clear" aria-label="Прибрати дедлайн" ${task.due_date ? "" : "hidden"}>✕</button>
+      <select class="task-card__recurrence" aria-label="Повторення">
+        <option value="">Не повторюється</option>
+        <option value="daily">Щодня</option>
+        <option value="weekly">Щотижня</option>
+        <option value="monthly">Щомісяця</option>
+      </select>
     </div>
 
     <div class="task-card__subtasks">
@@ -152,6 +159,7 @@ export function renderTaskCard(task, handlers = {}) {
   // на <option> — так гарантовано підсвічується поточна опція.
   card.querySelector(".task-card__status").value = task.status || "not_urgent";
   card.querySelector(".task-card__list").value = task.list;
+  card.querySelector(".task-card__recurrence").value = task.recurrence || "";
 
   wireCompletedCheckbox(card, task, onToggleCompleted);
   wireTrashButton(card, task, onDelete);
@@ -159,6 +167,7 @@ export function renderTaskCard(task, handlers = {}) {
   wireStatusSelect(card, task, onStatusChange);
   wireListSelect(card, task, onListChange);
   wireDueDate(card, task, onDueDateChange);
+  wireRecurrence(card, task, onRecurrenceChange);
   wireAddTag(card, task, onAddTag);
   wireAiBreakdown(card, task, detailedSubtasks);
   loadSubtasks(card, task, detailedSubtasks);
@@ -350,6 +359,28 @@ function wireDueDate(card, task, onDueDateChange) {
   });
 }
 
+function wireRecurrence(card, task, onRecurrenceChange) {
+  const select = card.querySelector(".task-card__recurrence");
+
+  select.addEventListener("change", async () => {
+    if (!onRecurrenceChange) return;
+
+    const value = select.value || null;
+    select.disabled = true;
+
+    try {
+      await onRecurrenceChange(task, value);
+      task.recurrence = value;
+    } catch (err) {
+      console.error(err);
+      select.value = task.recurrence || "";
+      window.alert("Не вдалося зберегти повторення. Спробуйте ще раз.");
+    } finally {
+      select.disabled = false;
+    }
+  });
+}
+
 function wireAddTag(card, task, onAddTag) {
   const addButton = card.querySelector(".task-card__add-tag");
 
@@ -438,6 +469,7 @@ function loadSubtasks(card, task, detailedSubtasks) {
         onToggle: (subtask, completed) => setSubtaskCompleted(subtask.id, completed),
         onDelete: (subtask) => deleteSubtask(subtask.id),
         onAdd: (title) => addSubtask(task.id, title),
+        onEditTitle: (subtask, title) => setSubtaskTitle(subtask.id, title),
         // Міні-дедлайн і міні-теги підзадачі — лише на сторінці
         // детального перегляду (detailedSubtasks); у компактних
         // картках («Вхідні», «Задачі», дошка) рядок підзадачі й

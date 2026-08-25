@@ -223,6 +223,34 @@ OAuth-логіну) або власне, задане через `authStore
 секретів чи деплою функцій не треба (це не Edge Function, працює
 напряму через `supabase-js`, як і решта клієнтських store).
 
+### Редагування назви/нотатки, повторювані задачі
+
+**Редагування** — кнопка «✎» у заголовку картки (поруч із кошиком)
+відкриває інлайн-форму (назва + нотатка разом, окрема кнопка
+«Зберегти» — на відміну від імені в акаунті чи назви підзадачі
+нижче, тут «клікнув повз» не мало б випадково зберігати ще не
+завершений текст). Підзадачі — своя кнопка «✎» в кожному рядку,
+той самий принцип інлайн-редагування, що й ім'я в
+[AccountMenu.js](../js/components/AccountMenu.js) (зберігає і по
+Enter, і по blur; Escape скасовує). `taskStore.updateTask()`,
+`subtaskStore.setSubtaskTitle()`.
+
+**Повторювані задачі** — dropdown «Повторення» поруч із дедлайном
+(`daily`/`weekly`/`monthly`/не повторюється, колонка `tasks
+.recurrence` —
+[20260825060000_add_recurrence_to_tasks.sql](../supabase/migrations/20260825060000_add_recurrence_to_tasks.sql)).
+Без фонових завдань чи окремої таблиці: позначення повторюваної
+задачі виконаною (`taskStore.completeTask()`) одразу створює нову
+задачу на наступну дату (та сама назва/нотатка/список/теги/статус/
+recurrence), а стару лишає виконаною назавжди — зберігається
+історія повторень, замість одного рядка, який щоразу скидався б
+назад у невиконаний стан. Задача без `recurrence` — `completeTask()`
+поводиться як звичайний `setTaskCompleted()`, без нової задачі.
+Дошка (`/board`) має власний шлях до «Виконані» (drag-and-drop, не
+dropdown) — там теж `completeTask()`, `board.js` тримає карту
+`tasksById` (`getAllTasks()` дає лише список, а `handleDrop` знає
+тільки `taskId`, не повний об'єкт, потрібний `completeTask()`).
+
 ### Telegram-бот — підключено
 
 Задачу можна додати в «Вхідні» повідомленням Telegram-боту (текст —
@@ -540,8 +568,9 @@ GTD додаток/
 │   ├── store/
 │   │   ├── taskStore.js           — задачі через Supabase (getTaskById, getTasks,
 │   │   │                             getAllTasks, addTask, updateTask,
-│   │   │                             setTaskCompleted,
+│   │   │                             setTaskCompleted, completeTask,
 │   │   │                             setTaskStatus, setTaskList, setTaskDueDate,
+│   │   │                             setTaskRecurrence,
 │   │   │                             setTaskTags, moveTaskToTrash, getTrashedTasks,
 │   │   │                             restoreTask, deleteTaskPermanently)
 │   │   │                             + JSDoc-тип Task
@@ -646,8 +675,10 @@ GTD додаток/
 │       │                          — бакет user-uploads + RLS (потребує виконання)
 │       ├── 20260825040000_replace_notion_with_onedrive.sql
 │       │                          — materials.type: notion → onedrive (потребує виконання)
-│       └── 20260825050000_create_comments_table.sql
-│                                  — comments + RLS (потребує виконання)
+│       ├── 20260825050000_create_comments_table.sql
+│       │                          — comments + RLS (потребує виконання)
+│       └── 20260825060000_add_recurrence_to_tasks.sql
+│                                  — tasks.recurrence (потребує виконання)
 ├── docs/
 │   ├── PRD.md                    — опис продукту
 │   └── ARCHITECTURE.md           — цей документ

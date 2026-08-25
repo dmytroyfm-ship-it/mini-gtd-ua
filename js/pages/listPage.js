@@ -14,10 +14,12 @@ import {
   getTasks,
   updateTask,
   setTaskCompleted,
+  completeTask,
   moveTaskToTrash,
   setTaskStatus,
   setTaskList,
   setTaskDueDate,
+  setTaskRecurrence,
   setTaskTags,
 } from "../store/taskStore.js";
 import { renderTaskList } from "../components/TaskList.js";
@@ -45,6 +47,7 @@ export function createListPage({ list, title, emptyText }) {
             onStatusChange: handleStatusChange,
             onListChange: handleListChange,
             onDueDateChange: handleDueDateChange,
+            onRecurrenceChange: handleRecurrenceChange,
             onAddTag: handleAddTag,
           },
           emptyText
@@ -61,7 +64,8 @@ export function createListPage({ list, title, emptyText }) {
     }
 
     async function handleToggleCompleted(task, completed) {
-      await setTaskCompleted(task.id, completed);
+      if (completed) await completeTask(task);
+      else await setTaskCompleted(task.id, false);
       await refreshList();
     }
 
@@ -88,6 +92,11 @@ export function createListPage({ list, title, emptyText }) {
 
     async function handleDueDateChange(task, dueDate) {
       await setTaskDueDate(task.id, dueDate);
+      await refreshList();
+    }
+
+    async function handleRecurrenceChange(task, recurrence) {
+      await setTaskRecurrence(task.id, recurrence);
       await refreshList();
     }
 
