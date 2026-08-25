@@ -6,13 +6,19 @@
 // supabase/migrations/20260825010000_setup_daily_reminder_cron.sql)
 // і сама надсилає повідомлення користувачам.
 //
-// Логіка: серед активних (не в кошику, не виконаних) задач з
-// дедлайном — які прострочені (due_date < сьогодні) і які на
-// сьогодні (due_date = сьогодні); якщо є хоч одна — надсилає
-// повідомлення в Telegram-чат, прив'язаний до цього user_id
-// (telegram_links, той самий принцип, що й у telegram-webhook/).
-// Немає прив'язки чи взагалі нема таких задач — мовчки нічого не
-// надсилає.
+// Формує повний список задач на день, а не лише лічильники — серед
+// активних (не в кошику, не виконаних) задач:
+//   • прострочені   — due_date < сьогодні
+//   • на сьогодні    — due_date = сьогодні
+//   • на завтра      — due_date = завтра ("до дедлайну 1 день")
+//   • термінові      — status = "urgent" (незалежно від дедлайну —
+//                      попадає в один з блоків вище за датою, якщо
+//                      вона є, або в окремий блок «термінові без
+//                      дедлайну», якщо дедлайну нема чи він далі, ніж
+//                      завтра); рядок такої задачі додатково
+//                      позначається 🔴, в якому б блоці не опинився.
+// Нема жодної задачі, що підпадає під ці критерії, чи нема прив'язки
+// Telegram — мовчки нічого не надсилає.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -28,30 +34,81 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// Telegram обмежує повідомлення 4096 символами — для особистого
+// використання список навряд чи наблизиться до межі, але про
+// всяк випадок акуратно обрізаємо, а не даємо Telegram API
+// відхилити весь виклик мовчки.
+const MAX_MESSAGE_LENGTH = 3800;
+
 async function sendMessage(chatId: number, text: string) {
+  const body = text.length > MAX_MESSAGE_LENGTH
+    ? `${text.slice(0, MAX_MESSAGE_LENGTH)}\n\n… список скорочено, повний — у застосунку.`
+    : text;
+
   await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text }),
+    body: JSON.stringify({ chat_id: chatId, text: body }),
   });
 }
 
-// Українська множина (1 задача / 2-4 задачі / 5+ задач) — тексту
-// в проєкті завжди українською (PROJECT_RULES, п.1), а не лише
-// найпростішого "5 задач" незалежно від числа.
-function pluralize(n: number, one: string, few: string, many: string): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) return few;
-  return many;
-}
-
-// "Сьогодні" — за київським часом, не UTC (сервер завжди в UTC,
-// а нагадування — для користувача в Україні). en-CA форматує рівно
-// як YYYY-MM-DD, зручно порівнювати з датою в базі (тип date).
+// "Сьогодні"/"завтра" — за київським часом, не UTC (сервер завжди в
+// UTC, а нагадування — для користувача в Україні). en-CA форматує
+// рівно як YYYY-MM-DD, зручно порівнювати з датою в базі (тип date).
 function todayInKyiv(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Kyiv" }).format(new Date());
+}
+
+function addDays(dateStr: string, days: number): string {
+  const date = new Date(`${dateStr}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+// "2026-08-25" → "25.08" — компактніше в списку, ніж повна дата.
+function formatDueDate(dateStr: string): string {
+  const [, month, day] = dateStr.split("-");
+  return `${day}.${month}`;
+}
+
+type Task = { id: string; user_id: string; title: string; due_date: string | null; status: string | null };
+type Bucket = "overdue" | "today" | "tomorrow" | "urgent";
+
+function bucketOf(task: Task, today: string, tomorrow: string): Bucket {
+  if (task.due_date && task.due_date < today) return "overdue";
+  if (task.due_date === today) return "today";
+  if (task.due_date === tomorrow) return "tomorrow";
+  return "urgent"; // потрапив у вибірку лише через status = "urgent"
+}
+
+function formatTaskLine(task: Task): string {
+  const marker = task.status === "urgent" ? "🔴 " : "";
+  const due = task.due_date ? ` (дедлайн ${formatDueDate(task.due_date)})` : "";
+  return `• ${marker}${task.title}${due}`;
+}
+
+const BUCKET_TITLES: Record<Bucket, string> = {
+  overdue: "‼️ Прострочені",
+  today: "⏰ Дедлайн сьогодні",
+  tomorrow: "📅 Дедлайн завтра",
+  urgent: "🔴 Термінові (без дедлайну поруч)",
+};
+const BUCKET_ORDER: Bucket[] = ["overdue", "today", "tomorrow", "urgent"];
+
+function buildMessage(tasks: Array<Task & { __bucket: Bucket }>): string {
+  const grouped: Record<Bucket, Task[]> = { overdue: [], today: [], tomorrow: [], urgent: [] };
+  for (const task of tasks) grouped[task.__bucket].push(task);
+  // Найстаріші прострочені — першими, щоб одразу впадали в очі.
+  grouped.overdue.sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""));
+
+  const sections = BUCKET_ORDER.filter((bucket) => grouped[bucket].length > 0).map(
+    (bucket) => `${BUCKET_TITLES[bucket]}:\n${grouped[bucket].map(formatTaskLine).join("\n")}`
+  );
+
+  return (
+    `🔔 Доброго ранку! Задачі на сьогодні:\n\n${sections.join("\n\n")}\n\n` +
+    `Натисніть сюди, щоб відкрити планувальник: ${APP_URL}`
+  );
 }
 
 Deno.serve(async (req) => {
@@ -66,26 +123,26 @@ Deno.serve(async (req) => {
   }
 
   const today = todayInKyiv();
+  const tomorrow = addDays(today, 1);
 
   const { data: tasks, error } = await supabase
     .from("tasks")
-    .select("user_id, due_date")
+    .select("id, user_id, title, due_date, status")
     .is("deleted_at", null)
     .eq("completed", false)
-    .not("due_date", "is", null)
-    .lte("due_date", today);
+    .or(`due_date.lte.${tomorrow},status.eq.urgent`);
 
   if (error) {
     console.error(error);
     return new Response("error", { status: 500 });
   }
 
-  const byUser = new Map<string, { today: number; overdue: number }>();
-  for (const task of tasks ?? []) {
-    const bucket = byUser.get(task.user_id) ?? { today: 0, overdue: 0 };
-    if (task.due_date === today) bucket.today += 1;
-    else bucket.overdue += 1;
-    byUser.set(task.user_id, bucket);
+  const byUser = new Map<string, Array<Task & { __bucket: Bucket }>>();
+  for (const task of (tasks ?? []) as Task[]) {
+    const bucket = bucketOf(task, today, tomorrow);
+    const list = byUser.get(task.user_id) ?? [];
+    list.push({ ...task, __bucket: bucket });
+    byUser.set(task.user_id, list);
   }
 
   if (byUser.size === 0) {
@@ -105,16 +162,10 @@ Deno.serve(async (req) => {
 
   let sent = 0;
   for (const link of links ?? []) {
-    const bucket = byUser.get(link.user_id);
-    if (!bucket) continue;
+    const userTasks = byUser.get(link.user_id);
+    if (!userTasks || userTasks.length === 0) continue;
 
-    const text =
-      `🔔 Доброго ранку! У вас ${bucket.today} ` +
-      `${pluralize(bucket.today, "задача", "задачі", "задач")} на сьогодні і ` +
-      `${bucket.overdue} ${pluralize(bucket.overdue, "прострочена", "прострочені", "прострочених")}. ` +
-      `Натисніть сюди, щоб відкрити планувальник: ${APP_URL}`;
-
-    await sendMessage(link.telegram_chat_id as number, text);
+    await sendMessage(link.telegram_chat_id as number, buildMessage(userTasks));
     sent += 1;
   }
 

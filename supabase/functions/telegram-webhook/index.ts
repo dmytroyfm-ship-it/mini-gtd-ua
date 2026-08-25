@@ -9,9 +9,19 @@
 //                          title = сам текст).
 //   3. голосове (voice)  — качає файл із Telegram, розпізнає через
 //                          Whisper-сумісний API (WHISPER_API_BASE_URL,
-//                          дефолт — Groq), тоді так само створює
-//                          задачу з розпізнаним текстом.
-//   4. у відповідь бот пише "✅ Додано в Inbox: …".
+//                          дефолт — Groq), тоді розшифровку віддає
+//                          на аналіз тому самому Groq-чату, що й
+//                          ai-assist/ (_shared/groqChat.ts): ШІ
+//                          виділяє головну задачу (title) окремо від
+//                          деталей (note), і підзадачі — як названі
+//                          користувачем уснo, так і додані самим ШІ,
+//                          якщо вони явно потрібні, але не прозвучали
+//                          (analyzeVoiceTask нижче). Текстові
+//                          повідомлення так не розбираються — лише
+//                          голосові, де довге хаотичне надиктовування
+//                          справді потребує структурування.
+//   4. у відповідь бот пише "✅ Додано в Inbox: …" (+ підзадачі, якщо
+//      ШІ їх визначив).
 //
 // Довірений сервер — service_role key (повний доступ в обхід RLS,
 // бо на момент запиту немає Supabase-сесії користувача, лише
@@ -25,6 +35,7 @@
 // ручні кроки, як і SQL-міграції.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callGroqJSON } from "../_shared/groqChat.ts";
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 const TELEGRAM_WEBHOOK_SECRET = Deno.env.get("TELEGRAM_WEBHOOK_SECRET") ?? "";
@@ -80,6 +91,45 @@ async function transcribeVoice(fileId: string): Promise<string> {
 
   const result = await whisperRes.json();
   return (result.text ?? "").trim();
+}
+
+type VoiceBreakdown = { title: string; note: string; subtasks: string[] };
+
+// Розшифровка голосового — часто довгий, хаотичний потік думки, а
+// не готова назва задачі: ШІ виділяє з неї головну задачу (title),
+// решту суттєвого, що не увійшло в title, лишає в note, і збирає
+// підзадачі — і ті, що користувач назвав уголос, і ті, що явно
+// потрібні для виконання головної задачі, навіть якщо він їх не
+// проговорив (наприклад, для «замовити столик у ресторані на суботу»
+// — «підтвердити бронювання за день» — якщо це логічно випливає з
+// контексту). Не вигадує зайвого понад це.
+async function analyzeVoiceTask(transcript: string): Promise<VoiceBreakdown> {
+  const result = await callGroqJSON(
+    "Ти — асистент планування задач у GTD-застосунку. Користувач " +
+      "щойно надиктував голосове повідомлення — текст може бути " +
+      "довгим і хаотичним. Визнач: 1) title — головна задача, " +
+      "коротким чітким формулюванням; 2) note — додаткові деталі з " +
+      "тексту, які не увійшли в title (порожній рядок, якщо таких " +
+      "нема); 3) subtasks — підзадачі: включи ті, що користувач " +
+      "явно назвав, і додай ті, які очевидно потрібні для виконання " +
+      "головної задачі, навіть якщо він їх не проговорив — але лише " +
+      "те, що логічно випливає з тексту, не вигадуй зайвого. Якщо " +
+      "задача проста, в одну дію — поверни порожній список subtasks. " +
+      "Усе українською. Відповідай ЛИШЕ JSON-об'єктом формату " +
+      '{"title": "...", "note": "...", "subtasks": ["...", ...]}, ' +
+      "без жодного іншого тексту.",
+    `Розшифровка голосового повідомлення:\n"${transcript}"`
+  );
+
+  const title = typeof result.title === "string" ? result.title.trim() : "";
+  const note = typeof result.note === "string" ? result.note.trim() : "";
+  const subtasks = Array.isArray(result.subtasks)
+    ? result.subtasks.filter((s): s is string => typeof s === "string" && s.trim().length > 0).map((s) => s.trim())
+    : [];
+
+  if (!title) throw new Error("ШІ не визначив головну задачу.");
+
+  return { title, note, subtasks: subtasks.slice(0, 8) };
 }
 
 async function findUserIdByChatId(chatId: number): Promise<string | null> {
@@ -150,17 +200,33 @@ async function handleMessage(message: Record<string, unknown>) {
   }
 
   let title: string | null = null;
+  let note = "";
+  let subtasks: string[] = [];
 
   if (text) {
     title = text;
   } else if (message.voice) {
     const voice = message.voice as { file_id: string };
+    let transcript: string;
     try {
-      title = await transcribeVoice(voice.file_id);
+      transcript = await transcribeVoice(voice.file_id);
     } catch (err) {
       console.error(err);
       await sendMessage(chatId, "Не вдалося розпізнати голосове повідомлення. Спробуй ще раз або надішли текстом.");
       return;
+    }
+
+    try {
+      const breakdown = await analyzeVoiceTask(transcript);
+      title = breakdown.title;
+      note = breakdown.note;
+      subtasks = breakdown.subtasks;
+    } catch (err) {
+      // ШІ-аналіз не вдався (наприклад, Groq тимчасово недоступний) —
+      // не блокуємо користувача, зберігаємо розшифровку як є, без
+      // розбиття на підзадачі.
+      console.error(err);
+      title = transcript;
     }
   }
 
@@ -169,14 +235,29 @@ async function handleMessage(message: Record<string, unknown>) {
     return;
   }
 
-  const { error } = await supabase.from("tasks").insert({ user_id: userId, title, list: "inbox" });
-  if (error) {
+  const { data: task, error } = await supabase
+    .from("tasks")
+    .insert({ user_id: userId, title, note, list: "inbox" })
+    .select("id")
+    .single();
+
+  if (error || !task) {
     console.error(error);
     await sendMessage(chatId, "Не вдалося зберегти задачу. Спробуй ще раз.");
     return;
   }
 
-  await sendMessage(chatId, `✅ Додано в Inbox: ${title}`);
+  if (subtasks.length > 0) {
+    const { error: subtaskError } = await supabase
+      .from("subtasks")
+      .insert(subtasks.map((subtaskTitle) => ({ task_id: task.id, user_id: userId, title: subtaskTitle })));
+    // Задача вже збережена — невдале збереження підзадач не має
+    // ховати сам факт, що задачу додано, лише логуємось.
+    if (subtaskError) console.error(subtaskError);
+  }
+
+  const subtasksText = subtasks.length > 0 ? `\n📋 Підзадачі:\n${subtasks.map((s) => `• ${s}`).join("\n")}` : "";
+  await sendMessage(chatId, `✅ Додано в Inbox: ${title}${subtasksText}`);
 }
 
 Deno.serve(async (req) => {
