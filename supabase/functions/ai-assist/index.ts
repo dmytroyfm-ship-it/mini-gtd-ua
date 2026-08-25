@@ -24,7 +24,11 @@
 
 const GROQ_API_KEY = Deno.env.get("WHISPER_API_KEY") ?? "";
 const GROQ_API_BASE_URL = Deno.env.get("WHISPER_API_BASE_URL") ?? "https://api.groq.com/openai/v1";
-const AI_MODEL = Deno.env.get("AI_MODEL") ?? "llama-3.3-70b-versatile";
+// Groq регулярно знімає з підтримки старі моделі (так і сталось із
+// попереднім дефолтом, llama-3.3-70b-versatile — 404 model_not_found
+// уже за кілька годин після деплою). Якщо ця модель теж колись
+// зникне — досить задати свій секрет AI_MODEL, код міняти не треба.
+const AI_MODEL = Deno.env.get("AI_MODEL") ?? "openai/gpt-oss-120b";
 
 async function callGroq(systemPrompt: string, userPrompt: string): Promise<Record<string, unknown>> {
   const res = await fetch(`${GROQ_API_BASE_URL}/chat/completions`, {
@@ -105,11 +109,29 @@ async function handleNextTask(tasks: unknown): Promise<{ taskId: string; reason:
   return { taskId, reason };
 }
 
+// На відміну від telegram-webhook/daily-reminder (їх викликає лише
+// інший сервер), цю функцію викликає браузер напряму
+// (supabase.functions.invoke() в aiStore.js) — без CORS-заголовків
+// браузер сам блокує відповідь ще до нашого коду (preflight-запит
+// OPTIONS взагалі лишається без відповіді), і клієнт бачить це як
+// "зависло", без жодної явної помилки.
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 function json(payload: unknown): Response {
-  return new Response(JSON.stringify(payload), { headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(payload), {
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+  });
 }
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: CORS_HEADERS });
+  }
+
   if (req.method !== "POST") {
     return json({ error: "Метод не підтримується." });
   }
