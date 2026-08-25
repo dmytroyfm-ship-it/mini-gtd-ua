@@ -78,26 +78,49 @@ export function renderAccountMenu() {
     input.focus();
     input.select();
 
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
+    // Зберігає і по Enter (submit), і при звичайному кліку повз
+    // поле (blur) — так очікують від будь-якого інлайн-редагування,
+    // «просто клікнув убік» не мало б скасовувати введене. Escape —
+    // єдиний спосіб явно скасувати.
+    let cancelled = false;
+    let saving = false;
+
+    async function save() {
+      if (saving) return;
+      saving = true;
+
       const nextName = input.value.trim();
-      input.disabled = true;
+      if (nextName === currentName) {
+        render();
+        return;
+      }
+
+      input.disabled = true; // сам по собі викликає blur — saving-прапорець захищає від повторного save()
 
       try {
         await updateDisplayName(nextName);
-        render();
       } catch (err) {
         console.error(err);
-        input.disabled = false;
         window.alert("Не вдалося зберегти ім'я. Спробуйте ще раз.");
+      } finally {
+        render();
       }
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      save();
     });
 
     input.addEventListener("blur", () => {
-      // Клік по кнопці збереження встигає спрацювати раніше за
-      // blur лише якщо це submit; звичайне «просто пішов геть» —
-      // повертаємо як було, без збереження.
-      if (document.activeElement !== input) render();
+      if (!cancelled) save();
+    });
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        cancelled = true;
+        render();
+      }
     });
   }
 

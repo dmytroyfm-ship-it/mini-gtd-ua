@@ -76,6 +76,10 @@ export async function signInWithGoogle() {
       // prompt=select_account примусово показує екран вибору
       // акаунта щоразу.
       queryParams: { prompt: "select_account" },
+      // Без явного "profile" Google віддавав лише ім'я, без фото
+      // (user_metadata.avatar_url/picture — обидва були відсутні) —
+      // для AccountMenu.js потрібне саме фото.
+      scopes: "email profile",
     },
   });
 
