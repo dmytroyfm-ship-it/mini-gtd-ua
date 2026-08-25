@@ -35,6 +35,10 @@ const WHISPER_API_KEY = Deno.env.get("WHISPER_API_KEY") ?? "";
 // і WHISPER_MODEL=whisper-1 в секретах функції, код міняти не треба.
 const WHISPER_API_BASE_URL = Deno.env.get("WHISPER_API_BASE_URL") ?? "https://api.groq.com/openai/v1";
 const WHISPER_MODEL = Deno.env.get("WHISPER_MODEL") ?? "whisper-large-v3";
+// SUPABASE_URL і SUPABASE_SERVICE_ROLE_KEY НЕ задаються через
+// `supabase secrets set` — Supabase сам підставляє їх у кожну Edge
+// Function автоматично (разом із SUPABASE_ANON_KEY, тут не
+// потрібним). Задавати їх вручну не можна й не треба.
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 

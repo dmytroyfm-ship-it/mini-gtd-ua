@@ -240,16 +240,18 @@ Supabase CLI, ні до Telegram-акаунту користувача, тож �
    supabase login
    supabase link --project-ref ufjkundsaelfstfxslck
    ```
-5. **Задати секрети функції** (`SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`
-   — Supabase Dashboard → Project Settings → API; `TELEGRAM_WEBHOOK_SECRET`
-   — вигадати самому, будь-який довгий випадковий рядок):
+5. **Задати секрети функції** (`TELEGRAM_WEBHOOK_SECRET` — вигадати
+   самому, будь-який довгий випадковий рядок, наприклад
+   `openssl rand -hex 24`; `SUPABASE_URL` і
+   `SUPABASE_SERVICE_ROLE_KEY` **задавати не треба** — Supabase сам
+   підставляє їх у кожну Edge Function автоматично, без
+   `secrets set`; сторінка «Legacy anon, service_role API keys» в
+   Dashboard тут узагалі не потрібна):
    ```bash
    supabase secrets set \
      TELEGRAM_BOT_TOKEN=<токен_від_BotFather> \
      TELEGRAM_WEBHOOK_SECRET=<свій_випадковий_рядок> \
-     WHISPER_API_KEY=<ключ_Groq> \
-     SUPABASE_URL=https://ufjkundsaelfstfxslck.supabase.co \
-     SUPABASE_SERVICE_ROLE_KEY=<service_role_key_з_Project_Settings>
+     WHISPER_API_KEY=<ключ_Groq>
    ```
 6. **Задеплоїти функцію**:
    ```bash
