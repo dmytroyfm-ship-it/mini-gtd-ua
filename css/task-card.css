@@ -124,6 +124,7 @@
   flex: 1 1 auto;
   min-width: 0;
   width: 100%;
+  box-sizing: border-box;
   padding: 0.3rem 0.5rem;
   background: var(--bg-raised);
   border: 1px solid var(--accent-dim);
@@ -132,6 +133,15 @@
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 1.02rem;
+  line-height: 1.35;
+  /* textarea, не input: на довгих назвах текст переноситься й поле
+     росте по висоті (autoGrowTitle() в TaskCard.js), замість того щоб
+     ховати частину тексту за горизонтальною прокруткою однорядкового
+     поля. */
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .task-card__edit-note-input {

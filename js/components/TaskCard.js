@@ -220,6 +220,15 @@ function wireTrashButton(card, task, onDelete) {
 // (SubtaskItem.js) чи імені в акаунті (AccountMenu.js) тут два
 // поля одразу й окрема кнопка «Зберегти» — просто «клікнув повз»
 // не мало б випадково зберігати ще не завершену нотатку.
+// Розтягує textarea назви по висоті під фактичний вміст (перенесені
+// рядки довгого заголовка) — інакше textarea лишалась би висотою в
+// один рядок і текст все одно ховався б за прокруткою, тільки вже
+// вертикальною замість горизонтальної.
+function autoGrowTitle(textarea) {
+  textarea.style.height = "auto";
+  textarea.style.height = `${textarea.scrollHeight}px`;
+}
+
 function wireEditTask(card, task, onEditTask) {
   const editButton = card.querySelector(".task-card__edit");
 
@@ -230,7 +239,7 @@ function wireEditTask(card, task, onEditTask) {
     const noteSlot = card.querySelector(".task-card__note-slot");
     const originalNoteHTML = noteSlot.innerHTML;
 
-    // Замінюємо сам <h3> (а не лише його innerHTML) на <input> —
+    // Замінюємо сам <h3> (а не лише його innerHTML) на <textarea> —
     // інакше поле вводу опиняється вкладеним у h3 з flex-basis:
     // auto, і його width: 100% рахується від щойно перерахованого
     // (за вмістом самого інпута) розміру h3, а не від реальної
@@ -238,11 +247,19 @@ function wireEditTask(card, task, onEditTask) {
     // Замінивши h3 цілком, .task-card__edit-title-input сам стає
     // flex-елементом .task-card__header (той самий flex: 1 1 auto;
     // min-width: 0, що й був у h3 — див. CSS) і росте нормально.
-    const titleInput = document.createElement("input");
-    titleInput.type = "text";
+    //
+    // <textarea>, а не однорядковий <input>: на довгій назві однорядкове
+    // поле прокручується по горизонталі й показує лише частину тексту
+    // біля курсора (саме це користувач і побачив на скріні) — textarea
+    // з autoGrowTitle() переносить рядки й розтягується по висоті, тож
+    // весь текст видно одразу.
+    const titleInput = document.createElement("textarea");
+    titleInput.rows = 1;
     titleInput.className = "task-card__edit-title-input";
     titleInput.value = task.title;
     titleHeading.replaceWith(titleInput);
+    autoGrowTitle(titleInput);
+    titleInput.addEventListener("input", () => autoGrowTitle(titleInput));
 
     noteSlot.innerHTML = `
       <textarea class="task-card__edit-note-input" rows="2" placeholder="Додаткові деталі…">${escapeHtml(task.note || "")}</textarea>
@@ -266,7 +283,17 @@ function wireEditTask(card, task, onEditTask) {
     cancelButton.addEventListener("click", restore);
 
     titleInput.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") restore();
+      if (event.key === "Escape") {
+        restore();
+        return;
+      }
+      // Enter у назві зберігає (а не вставляє новий рядок — назва
+      // задачі однорядкова за змістом, textarea тут лише для того,
+      // щоб довгий текст переносився й був повністю видимий).
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        saveButton.click();
+      }
     });
     noteInput.addEventListener("keydown", (event) => {
       if (event.key === "Escape") restore();
