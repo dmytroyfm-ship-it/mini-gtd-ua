@@ -20,4 +20,4 @@ export const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_KqRH9UTvUl_Nn2rXIo0oAQ_x
 // будь-кому, хто відкриє чат із ботом. Замінити на своє після
 // створення бота через @BotFather (докладніше —
 // docs/ARCHITECTURE.md, розділ про Telegram-інтеграцію).
-export const TELEGRAM_BOT_USERNAME = "your_bot_username";
+export const TELEGRAM_BOT_USERNAME = "mini_gtd_bot";
