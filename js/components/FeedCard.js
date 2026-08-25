@@ -45,7 +45,7 @@ export function renderFeedCard(item, handlers = {}) {
     <h3 class="feed-card__title">${title}</h3>
     ${text ? `<p class="feed-card__text">${text}</p>` : ""}
     <div class="feed-card__actions">
-      <button type="button" class="feed-card__inbox">✅ В Inbox</button>
+      <button type="button" class="feed-card__inbox">✅ Додати у Вхідні</button>
       <button type="button" class="feed-card__skip">✖ Пропустити</button>
       <a class="feed-card__open" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">🔗 Відкрити</a>
     </div>
@@ -68,7 +68,7 @@ export function renderFeedCard(item, handlers = {}) {
     } catch (err) {
       console.error(err);
       setBusy(false);
-      window.alert("Не вдалося додати в Inbox. Спробуйте ще раз.");
+      window.alert("Не вдалося додати у Вхідні. Спробуйте ще раз.");
     }
   });
 
