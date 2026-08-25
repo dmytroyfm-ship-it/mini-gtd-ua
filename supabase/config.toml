@@ -1,0 +1,13 @@
+# Конфігурація Supabase CLI — потрібна лише для деплою Edge Function
+# (supabase/functions/telegram-webhook/); на решту проєкту (SQL-
+# міграції виконуються вручну в SQL Editor) не впливає.
+
+project_id = "ufjkundsaelfstfxslck"
+
+# Telegram шле POST без Supabase-сесії (JWT) — за замовчуванням
+# Supabase відхилив би такий запит ще до нашого коду. verify_jwt =
+# false вимикає цю перевірку саме для цієї функції; захист від чужих
+# запитів — окремий секрет TELEGRAM_WEBHOOK_SECRET, який звіряє сам
+# код функції (див. index.ts).
+[functions.telegram-webhook]
+verify_jwt = false

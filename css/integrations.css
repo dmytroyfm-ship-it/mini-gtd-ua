@@ -1,0 +1,110 @@
+/* Картка Telegram-інтеграції (js/components/IntegrationsCard.js).
+   Та сама картка-обгортка, що й форма/список задач — .task-list-card
+   з css/task-list.css задає фон і тінь, тут лише свій внутрішній
+   вміст. Кольори — лише з токенів у css/style.css. */
+
+.integrations-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin-top: 1.5rem;
+  padding: 1.4rem 1.5rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.integrations-card__status {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.integrations-card__badge {
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.integrations-card__badge--off {
+  background: var(--bg-raised);
+  color: var(--ink-dim);
+}
+
+.integrations-card__badge--pending {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.integrations-card__badge--on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.integrations-card__account {
+  color: var(--ink-dim);
+  font-size: 0.88rem;
+}
+
+.integrations-card__text {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.integrations-card__code-inline {
+  padding: 0.1rem 0.4rem;
+  background: var(--bg-raised);
+  border-radius: 6px;
+  color: var(--ink);
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.integrations-card__button {
+  align-self: flex-start;
+  padding: 0.55rem 1rem;
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.integrations-card__button:hover {
+  background: var(--accent-dim);
+}
+
+.integrations-card__button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.integrations-card__button--ghost {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+}
+
+.integrations-card__button--ghost:hover {
+  background: var(--bg-raised);
+  color: var(--ink);
+}
+
+.integrations-card__button--danger {
+  background: transparent;
+  border: 1px solid var(--accent-dim);
+  color: var(--accent);
+}
+
+.integrations-card__button--danger:hover {
+  background: var(--accent-soft);
+}

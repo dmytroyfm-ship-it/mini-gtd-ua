@@ -12,6 +12,7 @@ import { renderArchive } from "./pages/archive.js";
 import { renderBoard } from "./pages/board.js";
 import { renderTaskDetail } from "./pages/taskDetail.js";
 import { renderTrash } from "./pages/trash.js";
+import { renderIntegrations } from "./pages/integrations.js";
 import { renderAuth } from "./pages/auth.js";
 import { getSession } from "./store/authStore.js";
 
@@ -28,6 +29,7 @@ const ROUTES = [
   { path: "/list/someday", title: "Колись", render: renderSomeday, protected: true },
   { path: "/list/archive", title: "Архів", render: renderArchive, protected: true },
   { path: "/trash", title: "Кошик", render: renderTrash, protected: true },
+  { path: "/integrations", title: "Інтеграції", render: renderIntegrations, protected: true },
 ];
 
 let pageRoot = null;

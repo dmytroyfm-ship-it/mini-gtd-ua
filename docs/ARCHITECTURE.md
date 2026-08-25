@@ -170,6 +170,102 @@ user_id`), але для INSERT/UPDATE є ще одна умова: `task_id` м
 повертають на `/auth?error=...` — `consumeAuthError()` показує цей
 текст під кнопкою й одразу прибирає параметри з адресного рядка.
 
+### Telegram-бот — потребує ручного налаштування
+
+Задачу можна додати в «Вхідні» повідомленням Telegram-боту (текст —
+напряму, голосове — через розпізнавання мовлення). До цього моменту
+весь застосунок обходився без жодного власного сервера: браузер сам
+звертався до Supabase, підпираючись лише RLS. Боту потрібен
+довірений сервер — щось повинно приймати вебхук від Telegram,
+качати голосові файли, звертатись до Whisper-сумісного API й писати
+задачу в базу вже **в обхід RLS** (у момент повідомлення відомий
+лише `telegram_chat_id`, жодної Supabase-сесії немає). Для цього —
+[supabase/functions/telegram-webhook/index.ts](../supabase/functions/telegram-webhook/index.ts),
+**Supabase Edge Function** (Deno), обрана свідомо замість Netlify
+Functions: не займає деплой-квоту Netlify (обмежену на безкоштовному
+тарифі), секрети (bot token, service_role key, Whisper API key)
+живуть окремо від сайту, в секретах самої функції.
+
+**Прив'язка акаунта** — таблиця
+[telegram_links](../supabase/migrations/20260825000000_create_telegram_links_table.sql)
+(`user_id` ↔ `telegram_chat_id`), через одноразовий код:
+
+1. Сторінка «Інтеграції» (`/integrations`,
+   [IntegrationsCard.js](../js/components/IntegrationsCard.js) +
+   [telegramStore.js](../js/store/telegramStore.js)) — кнопка
+   «Згенерувати код прив'язки» пише `link_code` (6 символів, дійсний
+   15 хв) у власний рядок користувача. Це звичайний клієнтський
+   запит через RLS (`auth.uid() = user_id`), як і все інше в
+   проєкті — секретів тут немає.
+2. Користувач переходить за посиланням `https://t.me/<бот>?start=<код>`
+   (або вручну пише `/start <код>` боту).
+3. Edge Function отримує Update, знаходить рядок за `link_code` (не
+   за `user_id` — на цей момент вона ще не знає, хто пише),
+   заповнює `telegram_chat_id`/`telegram_username`/`telegram_first_name`,
+   чистить код. Тут потрібен `service_role key` — RLS дозволив би
+   лише власнику рядка, а на момент запиту авторизованого
+   користувача просто немає.
+
+**Кожне наступне повідомлення** (не `/start`) — функція шукає
+`user_id` за `telegram_chat_id`; якщо не знайдено, просить спершу
+прив'язатись. Текст іде в задачу напряму; голосове (`message.voice`)
+— спершу `getFile`/завантаження від Telegram, тоді POST на
+`WHISPER_API_BASE_URL` (дефолт — Groq, `whisper-large-v3`, безкоштовний
+ліміт; можна переключити на OpenAI лише зміною секретів, без
+редагування коду). Розпізнаний/уведений текст → `title`, `list =
+"inbox"`, `insert` у `tasks` тим самим `service_role`-клієнтом. У
+відповідь — `sendMessage` з підтвердженням.
+
+**Захист вебхука** — `TELEGRAM_WEBHOOK_SECRET`: Telegram підставляє
+цей самий секрет у заголовок `X-Telegram-Bot-Api-Secret-Token`
+кожного запиту (вказується один раз при реєстрації вебхука); функція
+звіряє його першим ділом і відкидає все, де він не збігається, —
+без цього хтось, хто просто дізнався URL функції, міг би створювати
+задачі від чужого імені.
+
+**Розгорнути й підключити — я (Claude) не маю доступу ні до
+Supabase CLI, ні до Telegram-акаунту користувача, тож усе нижче —
+ручні кроки**, той самий принцип, що й SQL-міграції:
+
+1. **Створити бота** — Telegram → [@BotFather](https://t.me/BotFather) →
+   `/newbot`, отримати токен (`123456:ABC-...`). Вписати ім'я бота
+   (без `@`) в [js/config.js](../js/config.js) →
+   `TELEGRAM_BOT_USERNAME` (не секрет, публічне ім'я).
+2. **Отримати ключ Whisper** — [console.groq.com](https://console.groq.com)
+   (безкоштовно) → API Keys → створити ключ.
+3. **Виконати міграцію** `20260825000000_create_telegram_links_table.sql`
+   у Supabase SQL Editor (як і решта міграцій — розділ 1 вище).
+4. **Прив'язати Supabase CLI до проєкту** (якщо ще не робили):
+   ```bash
+   supabase login
+   supabase link --project-ref ufjkundsaelfstfxslck
+   ```
+5. **Задати секрети функції** (`SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`
+   — Supabase Dashboard → Project Settings → API; `TELEGRAM_WEBHOOK_SECRET`
+   — вигадати самому, будь-який довгий випадковий рядок):
+   ```bash
+   supabase secrets set \
+     TELEGRAM_BOT_TOKEN=<токен_від_BotFather> \
+     TELEGRAM_WEBHOOK_SECRET=<свій_випадковий_рядок> \
+     WHISPER_API_KEY=<ключ_Groq> \
+     SUPABASE_URL=https://ufjkundsaelfstfxslck.supabase.co \
+     SUPABASE_SERVICE_ROLE_KEY=<service_role_key_з_Project_Settings>
+   ```
+6. **Задеплоїти функцію**:
+   ```bash
+   supabase functions deploy telegram-webhook
+   ```
+   (URL після деплою: `https://ufjkundsaelfstfxslck.supabase.co/functions/v1/telegram-webhook`)
+7. **Зареєструвати вебхук у Telegram** (той самий секрет, що й у
+   кроці 5):
+   ```bash
+   curl -X POST "https://api.telegram.org/bot<токен_від_BotFather>/setWebhook" \
+     -d "url=https://ufjkundsaelfstfxslck.supabase.co/functions/v1/telegram-webhook" \
+     -d "secret_token=<свій_випадковий_рядок>"
+   ```
+8. Відкрити `/integrations` у застосунку → «Згенерувати код
+   прив'язки» → перейти за посиланням у Telegram → готово.
+
 ## 2. Структура папок
 
 ```
@@ -185,11 +281,13 @@ GTD додаток/
 │   ├── task-card.css                — сама картка задачі + вкладені підзадачі
 │   ├── trash.css                    — стилі рядків кошика (кнопки дій)
 │   ├── board.css                     — дошка Kanban (.page--wide, колонки, drag-over)
-│   └── task-detail.css                — /task/:id: «Назад», блок «Матеріали»
+│   ├── task-detail.css                — /task/:id: «Назад», блок «Матеріали»
+│   └── integrations.css                — картка Telegram-інтеграції (/integrations)
 ├── js/
 │   ├── app.js                 — точка входу: чекає initAuth(), монтує навігацію й роутер
 │   ├── router.js               — маршрути, доступ, History API, рендер сторінок
 │   ├── config.js                — Project URL + publishable key Supabase (не секрет)
+│   │                             + TELEGRAM_BOT_USERNAME (теж не секрет)
 │   ├── lib/
 │   │   └── supabaseClient.js      — єдиний клієнт Supabase (createClient)
 │   ├── store/
@@ -204,7 +302,9 @@ GTD додаток/
 │   │   │                             setSubtaskTags, deleteSubtask)
 │   │   ├── materialStore.js         — матеріали (getMaterials, addMaterial,
 │   │   │                             deleteMaterial)
-│   │   └── authStore.js            — сесія через Supabase Auth (getSession, signInWithGoogle, signOut)
+│   │   ├── authStore.js            — сесія через Supabase Auth (getSession, signInWithGoogle, signOut)
+│   │   └── telegramStore.js        — прив'язка Telegram (getTelegramLink,
+│   │                             generateLinkCode, unlinkTelegram)
 │   ├── components/
 │   │   ├── Nav.js                — навігація (меню, бургер, email, «Вийти»)
 │   │   ├── AuthCard.js             — картка логіну (кнопка Google, помилка)
@@ -219,7 +319,8 @@ GTD додаток/
 │   │   │                             у детальному режимі)
 │   │   ├── MaterialsBlock.js           — блок «Матеріали»: кнопки додавання + сітка
 │   │   ├── TrashList.js             — картка кошика / «Кошик порожній.»
-│   │   └── TrashItem.js              — рядок кошика («Відновити» / «Видалити назавжди»)
+│   │   ├── TrashItem.js              — рядок кошика («Відновити» / «Видалити назавжди»)
+│   │   └── IntegrationsCard.js         — картка Telegram: статус, код прив'язки, відв'язати
 │   └── pages/
 │       ├── auth.js              — сторінка логіну (/auth)
 │       ├── inbox.js             — сторінка «Вхідні» (форма + список карток)
@@ -231,10 +332,17 @@ GTD додаток/
 │       ├── archive.js            — сторінка «Архів» (/list/archive)
 │       ├── board.js             — дошка Kanban (/board): колонки, drag-and-drop
 │       ├── taskDetail.js         — детальний перегляд задачі (/task/:id)
-│       └── trash.js             — сторінка «Кошик» (/trash)
+│       ├── trash.js             — сторінка «Кошик» (/trash)
+│       └── integrations.js       — сторінка «Інтеграції» (/integrations)
 ├── scripts/
 │   └── serve.py                 — локальний сервер з SPA-fallback
 ├── supabase/
+│   ├── config.toml               — потрібен лише для деплою Edge Function нижче
+│   ├── functions/
+│   │   └── telegram-webhook/
+│   │       └── index.ts          — приймає Update від Telegram, створює задачу
+│   │                             (текст чи Whisper-транскрипція голосового),
+│   │                             відповідає в чат (Deno, service_role key)
 │   └── migrations/
 │       ├── 20260824000000_create_tasks_table.sql
 │       │                          — схема tasks + RLS (виконано на реальному проєкті)
@@ -245,8 +353,10 @@ GTD додаток/
 │       │                          у коді — див. нижче) (виконано)
 │       ├── 20260824030000_add_status_to_tasks.sql
 │       │                          — status: картка + дошка Kanban, спільне поле (виконано)
-│       └── 20260824040000_add_due_date_and_tags_to_subtasks.sql
-│                                  — due_date + tags для subtasks, /task/:id (виконано)
+│       ├── 20260824040000_add_due_date_and_tags_to_subtasks.sql
+│       │                          — due_date + tags для subtasks, /task/:id (виконано)
+│       └── 20260825000000_create_telegram_links_table.sql
+│                                  — telegram_links: chat_id ↔ user_id (потребує виконання)
 ├── docs/
 │   ├── PRD.md                    — опис продукту
 │   └── ARCHITECTURE.md           — цей документ
@@ -362,6 +472,7 @@ Supabase SDK).
 | `/list/someday`        | Колись                 | лише авторизованим | список із реальної бази (без форми додавання) |
 | `/list/archive`        | Архів                  | лише авторизованим | список із реальної бази (без форми додавання) |
 | `/trash`               | Кошик                  | лише авторизованим | список видалених + відновлення / остаточне видалення |
+| `/integrations`        | Інтеграції             | лише авторизованим | картка Telegram: статус прив'язки, код, відв'язати |
 
 Будь-який невідомий шлях так само веде на `/inbox` або `/auth`,
 залежно від сесії. Пункти меню генеруються з цієї ж таблиці
@@ -463,7 +574,13 @@ dropdown «Статус», тож зі змінити статус можна і
   Storage), якого в проєкті ще немає — це б означало ще один
   ручний крок налаштування, як-от Supabase-проєкт чи Google OAuth.
   Посилання/Notion/Google Drive (URL-типи) — уже повністю робочі.
-- **AI-функції** — не реалізовані.
+- **Telegram-бот** — код повністю готовий (Edge Function, сторінка
+  «Інтеграції», прив'язка через код), але не запрацює, доки не
+  пройдені ручні кроки з розділу 1 («Telegram-бот — потребує
+  ручного налаштування»): створити бота, задати секрети, задеплоїти
+  функцію, зареєструвати вебхук.
+- **AI-функції** (окрім розпізнавання голосу для Telegram-бота) —
+  не реалізовані.
 - **Тестування** — автоматичних тестів поки немає. Вхід через
   Google і збереження задач перевірені вручну; автоматичної
   перевірки, що RLS справді не пускає одного користувача до задач
