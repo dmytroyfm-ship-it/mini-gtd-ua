@@ -99,6 +99,16 @@ const BUCKET_TITLES: Record<Bucket, string> = {
   urgent: "🔴 Термінові (без дедлайну поруч)",
   other: "🗒️ Інші задачі",
 };
+// Усі п'ять блоків показуються завжди, навіть порожні (за проханням
+// користувача — щоб одразу було видно "прострочених нема", а не
+// просто мовчазну відсутність секції).
+const BUCKET_EMPTY_TEXT: Record<Bucket, string> = {
+  overdue: "Прострочених нема 👍",
+  today: "На сьогодні нічого нема 👍",
+  tomorrow: "На завтра нічого нема",
+  urgent: "Термінових нема",
+  other: "Порожньо",
+};
 const BUCKET_ORDER: Bucket[] = ["overdue", "today", "tomorrow", "urgent", "other"];
 
 function buildMessage(tasks: Array<Task & { __bucket: Bucket }>): string {
@@ -107,9 +117,10 @@ function buildMessage(tasks: Array<Task & { __bucket: Bucket }>): string {
   // Найстаріші прострочені — першими, щоб одразу впадали в очі.
   grouped.overdue.sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""));
 
-  const sections = BUCKET_ORDER.filter((bucket) => grouped[bucket].length > 0).map(
-    (bucket) => `${BUCKET_TITLES[bucket]}:\n${grouped[bucket].map(formatTaskLine).join("\n")}`
-  );
+  const sections = BUCKET_ORDER.map((bucket) => {
+    const body = grouped[bucket].length > 0 ? grouped[bucket].map(formatTaskLine).join("\n") : BUCKET_EMPTY_TEXT[bucket];
+    return `${BUCKET_TITLES[bucket]}:\n${body}`;
+  });
 
   return (
     `🔔 Доброго ранку! Ваші задачі:\n\n${sections.join("\n\n")}\n\n` +
