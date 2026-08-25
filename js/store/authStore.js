@@ -13,9 +13,23 @@ let session = null;
 let readyPromise = null;
 
 function applySession(nextSession) {
-  session = nextSession
-    ? { id: nextSession.user.id, email: nextSession.user.email }
-    : null;
+  if (!nextSession) {
+    session = null;
+    return;
+  }
+
+  // Ім'я й фото — з Google-профілю (Supabase кладе їх у
+  // user_metadata після OAuth-логіну) або, якщо користувач сам
+  // задав своє ім'я через updateDisplayName(), звідти — воно теж
+  // лежить у тому самому user_metadata.full_name, тож нового поля
+  // не треба.
+  const metadata = nextSession.user.user_metadata || {};
+  session = {
+    id: nextSession.user.id,
+    email: nextSession.user.email,
+    name: metadata.full_name || metadata.name || null,
+    avatarUrl: metadata.avatar_url || metadata.picture || null,
+  };
 }
 
 // Викликати один раз при старті застосунку — чекає, поки Supabase
@@ -39,6 +53,16 @@ export function initAuth() {
 
 export function getSession() {
   return session;
+}
+
+// Перезаписує ім'я в меню акаунта (AccountMenu.js) — власним
+// значенням, поверх того, що прийшло з Google. supabase.auth
+// .updateUser() підмішує { full_name } в user_metadata, не
+// замінюючи решту полів (avatar_url лишається як був).
+export async function updateDisplayName(name) {
+  const { data, error } = await supabase.auth.updateUser({ data: { full_name: name } });
+  if (error) throw error;
+  applySession(data.user ? { user: data.user } : null);
 }
 
 export async function signInWithGoogle() {

@@ -29,7 +29,11 @@ const ROUTES = [
   { path: "/list/someday", title: "Колись", render: renderSomeday, protected: true },
   { path: "/list/archive", title: "Архів", render: renderArchive, protected: true },
   { path: "/trash", title: "Кошик", render: renderTrash, protected: true },
-  { path: "/integrations", title: "Інтеграції", render: renderIntegrations, protected: true },
+  // hideFromNav — маршрут доступний (посилання, кнопки), але не
+  // захаращує головне меню; потрапити на нього можна лише з меню
+  // акаунта (AccountMenu.js) — той самий принцип, що вже є для
+  // динамічних маршрутів (/task/:id) нижче в getRoutes().
+  { path: "/integrations", title: "Інтеграції", render: renderIntegrations, protected: true, hideFromNav: true },
 ];
 
 let pageRoot = null;
@@ -39,7 +43,7 @@ let onRouteChange = null;
 // потрапляє, так само як і динамічні («/task/:id» — на нього
 // потрапляють кліком по задачі, а не з меню).
 export function getRoutes() {
-  return ROUTES.filter((route) => route.protected && !route.path.includes(":"));
+  return ROUTES.filter((route) => route.protected && !route.path.includes(":") && !route.hideFromNav);
 }
 
 // Найпростіший матчинг динамічних сегментів (":id" тощо) — без
