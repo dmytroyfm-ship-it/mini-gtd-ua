@@ -51,7 +51,11 @@ function toLocalDateString(date) {
 // (recurrence_window_days) — тут рахуємо назад саму дату початку
 // для date-picker'а «Початок періоду» (TaskCard.js, wireRecurrenceWindow).
 function windowStartOf(task) {
-  if (!task.due_date || !task.recurrence_window_days) return "";
+  // task.recurrence_window_days == null (не !task.recurrence_window_days!)
+  // — 0 сам по собі валідне значення (період "той самий день", коли
+  // початок і дедлайн збігаються), а не "періоду нема"; !0 дало б
+  // true й ховало щойно введений початок, показуючи порожнє поле.
+  if (!task.due_date || task.recurrence_window_days == null) return "";
   const start = new Date(`${task.due_date}T00:00:00`);
   start.setDate(start.getDate() - task.recurrence_window_days);
   return toLocalDateString(start);

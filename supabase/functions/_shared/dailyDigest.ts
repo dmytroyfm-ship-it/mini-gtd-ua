@@ -43,7 +43,11 @@ function formatDueDate(dateStr: string): string {
 // фіксований due_date.
 function windowStartOf(task: DigestTask): string | null {
   if (!task.due_date) return null;
-  if (!task.recurrence_window_days) return task.due_date;
+  // == null, не falsy: 0 — валідна довжина періоду (початок і
+  // дедлайн той самий день), addDays(due, -0) і так дає due_date,
+  // але явна перевірка узгоджена з клієнтським кодом (taskStore.js/
+  // TaskCard.js), де ця ж пастка з !0 була реальним багом.
+  if (task.recurrence_window_days == null) return task.due_date;
   return addDays(task.due_date, -task.recurrence_window_days);
 }
 
