@@ -123,7 +123,7 @@ export async function renderTaskDetail(root, params) {
   }
 
   async function handleRecurrenceChange(t, recurrence) {
-    await setTaskRecurrence(t.id, recurrence);
+    await setTaskRecurrence(t.id, recurrence, t.due_date);
     await loadTask();
   }
 

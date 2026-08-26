@@ -21,6 +21,11 @@
 // @property {number|null} recurrence_window_days — довжина періоду
 //   дедлайну (в днях) ДО due_date; null — точно один фіксований
 //   день, як і раніше. Має сенс лише для weekly/monthly.
+// @property {number|null} recurrence_anchor_day — "рідне" число
+//   місяця для monthly-повторення (1-31), незалежне від фактичного
+//   due_date (який могло обрізати через короткий місяць) — так
+//   задача на 31-е після лютого сама повертається до 31-го в
+//   березні, а не застрягає на 28-му назавжди.
 // @property {string|null} deleted_at
 // @property {string} created_at
 // @property {string} updated_at
@@ -103,9 +108,36 @@ export async function setTaskCompleted(id, completed) {
   if (error) throw error;
 }
 
-// recurrence: "daily" | "weekly" | "monthly" | null.
-export async function setTaskRecurrence(id, recurrence) {
-  const { error } = await supabase.from("tasks").update({ recurrence }).eq("id", id);
+// "31" в recurrence_anchor_day — спеціальне значення "завжди
+// останній день місяця", а не буквально "31 число". Так задача, чий
+// дедлайн збігається з останнім днем ЙОГО місяця (наприклад, 30-е у
+// 30-денному місяці), у наступних місяцях сама переїжджає на
+// справжній останній день (30/31/28/29) — а не залипає на "30"
+// назавжди, навіть коли в новому місяці є 31-е. Дедлайн, що не є
+// останнім днем свого місяця (наприклад, 30-е в 31-денному місяці),
+// зберігається буквально — те саме число, обрізане лише якщо в
+// якомусь місяці його справді нема (Math.min нижче, в nextDueDate).
+function computeAnchorDay(dueDate) {
+  const date = new Date(`${dueDate}T00:00:00`);
+  const day = date.getDate();
+  const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  return day === lastDayOfMonth ? 31 : day;
+}
+
+// recurrence: "daily" | "weekly" | "monthly" | null. dueDate —
+// поточний дедлайн задачі (task.due_date з картки); при переході на
+// "monthly" з уже наявним дедлайном фіксує recurrence_anchor_day
+// (computeAnchorDay вище) — "рідне" число, до якого monthly-
+// повторення завжди повертається (див. nextDueDate нижче). Немає
+// дедлайну ще — anchor просто не встановлюється зараз,
+// setTaskDueDate() зробить це пізніше, коли дедлайн зʼявиться.
+export async function setTaskRecurrence(id, recurrence, dueDate) {
+  const values = { recurrence };
+  if (recurrence === "monthly" && dueDate) {
+    values.recurrence_anchor_day = computeAnchorDay(dueDate);
+  }
+
+  const { error } = await supabase.from("tasks").update(values).eq("id", id);
 
   if (error) throw error;
 }
@@ -120,19 +152,28 @@ export async function setTaskRecurrenceWindow(id, windowDays) {
   if (error) throw error;
 }
 
-function nextDueDate(dueDate, recurrence) {
+function nextDueDate(dueDate, recurrence, anchorDay) {
   // Немає дедлайну — рахуємо від сьогодні (немає іншої точки
   // відліку для наступного повторення).
   const base = dueDate ? new Date(`${dueDate}T00:00:00`) : new Date();
 
   if (recurrence === "monthly") {
+    // "Рідне" число місяця — anchorDay (recurrence_anchor_day), не
+    // день попереднього due_date: інакше задача на 31-е після
+    // короткого місяця (due_date обрізався до 30-го) назавжди
+    // застрягала б на 30-му, навіть у місяцях, де є 31-е — anchorDay
+    // лишається незмінним (тим самим числом чи сентинелом "31" —
+    // computeAnchorDay вище) незалежно від того, до чого обрізався
+    // фактичний due_date минулого разу. Немає anchorDay (старі
+    // задачі до цього поля) — використовуємо день due_date, як і
+    // раніше.
+    const day = anchorDay ?? base.getDate();
     // base.setMonth(base.getMonth() + 1) напряму тут не годиться:
     // 31 січня так стає 3 березня (лютого 31-го не існує, JS сам
     // переносить надлишок на наступний місяць) замість очікуваного
     // 28/29 лютого. Рахуємо явно: переходимо на перше число,
-    // додаємо місяць, тоді ставимо той самий день, обрізаний до
+    // додаємо місяць, тоді ставимо потрібний день, обрізаний до
     // довжини нового місяця.
-    const day = base.getDate();
     base.setDate(1);
     base.setMonth(base.getMonth() + 1);
     const lastDayOfMonth = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
@@ -169,11 +210,15 @@ export async function completeTask(task) {
       list: task.list,
       tags: task.tags || [],
       status: task.status,
-      due_date: nextDueDate(task.due_date, task.recurrence),
+      due_date: nextDueDate(task.due_date, task.recurrence, task.recurrence_anchor_day),
       recurrence: task.recurrence,
       // Довжина періоду (в днях) — та сама, що й була; лише дедлайн
       // (кінець періоду) зсувається на наступний цикл вище.
       recurrence_window_days: task.recurrence_window_days ?? null,
+      // "Рідне" число місяця (чи сентинел "завжди останній день") —
+      // незмінне з циклу в цикл, саме воно й не дає new due_date
+      // назавжди застрягти на обрізаному числі короткого місяця.
+      recurrence_anchor_day: task.recurrence_anchor_day ?? null,
     })
     .select()
     .single();
@@ -200,9 +245,17 @@ export async function setTaskList(id, list) {
   if (error) throw error;
 }
 
-// dueDate: "YYYY-MM-DD" або null, щоб прибрати дедлайн.
+// dueDate: "YYYY-MM-DD" або null, щоб прибрати дедлайн. Разом із
+// самим дедлайном завжди оновлює й recurrence_anchor_day
+// (computeAnchorDay вище) — байдуже, чи задача зараз monthly:
+// значення просто лежить напоготові, якщо повторення стане "monthly"
+// пізніше, і завжди відображає останню дату, яку користувач сам
+// обрав руками (а не застарілий anchor від давно зміненого дедлайну).
 export async function setTaskDueDate(id, dueDate) {
-  const { error } = await supabase.from("tasks").update({ due_date: dueDate }).eq("id", id);
+  const { error } = await supabase
+    .from("tasks")
+    .update({ due_date: dueDate, recurrence_anchor_day: dueDate ? computeAnchorDay(dueDate) : null })
+    .eq("id", id);
 
   if (error) throw error;
 }

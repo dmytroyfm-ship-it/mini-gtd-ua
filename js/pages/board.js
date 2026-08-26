@@ -210,7 +210,7 @@ export async function renderBoard(root) {
   }
 
   async function handleRecurrenceChange(task, recurrence) {
-    await setTaskRecurrence(task.id, recurrence);
+    await setTaskRecurrence(task.id, recurrence, task.due_date);
     await refreshBoard();
   }
 
