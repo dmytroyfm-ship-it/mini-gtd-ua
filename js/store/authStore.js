@@ -40,6 +40,10 @@ function applySession(nextSession) {
       email: nextSession.user.email,
       name: metadata.full_name || metadata.name || null,
       avatarUrl: metadata.avatar_url || null,
+      // Власне фонове зображення застосунку (BackgroundImage.js) —
+      // той самий принцип, що й avatarUrl: лише власне завантажене
+      // фото, зберігається в user_metadata.
+      backgroundUrl: metadata.background_url || null,
     };
   }
 
@@ -96,6 +100,34 @@ export async function uploadAvatar(file) {
   const avatarUrl = `${publicUrl}?v=${Date.now()}`;
 
   const { data, error } = await supabase.auth.updateUser({ data: { avatar_url: avatarUrl } });
+  if (error) throw error;
+  applySession(data.user ? { user: data.user } : null);
+}
+
+// Власне фонове зображення застосунку (меню акаунта, AccountMenu.js
+// → BackgroundImage.js застосовує його на весь застосунок) — той
+// самий принцип, що й uploadAvatar() вище: бакет user-uploads, шлях
+// {user_id}/background.<розширення>, значення в user_metadata.
+export async function uploadBackground(file) {
+  if (!session) throw new Error("Немає активної сесії — увійдіть ще раз.");
+
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const path = `${session.id}/background.${ext}`;
+  const publicUrl = await uploadFile(path, file);
+  const backgroundUrl = `${publicUrl}?v=${Date.now()}`;
+
+  const { data, error } = await supabase.auth.updateUser({ data: { background_url: backgroundUrl } });
+  if (error) throw error;
+  applySession(data.user ? { user: data.user } : null);
+}
+
+// Повертає застосунок до звичайного (без власного фото) фону —
+// сам файл у Storage лишається (наступне завантаження перезапише
+// його ж), прибирається лише посилання в user_metadata.
+export async function resetBackground() {
+  if (!session) throw new Error("Немає активної сесії — увійдіть ще раз.");
+
+  const { data, error } = await supabase.auth.updateUser({ data: { background_url: null } });
   if (error) throw error;
   applySession(data.user ? { user: data.user } : null);
 }

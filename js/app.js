@@ -4,6 +4,7 @@
 // /auth навіть залогіненому користувачу.
 
 import { mountNav, refreshNav } from "./components/Nav.js";
+import { initBackground } from "./components/BackgroundImage.js";
 import { initRouter } from "./router.js";
 import { initAuth } from "./store/authStore.js";
 
@@ -14,5 +15,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   await initAuth();
 
   mountNav(navRoot);
+  initBackground();
   initRouter(pageRoot, refreshNav);
 });

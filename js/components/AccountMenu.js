@@ -8,7 +8,15 @@
 // приймає).
 
 import { navigate } from "../router.js";
-import { getSession, signOut, updateDisplayName, uploadAvatar, subscribe } from "../store/authStore.js";
+import {
+  getSession,
+  signOut,
+  updateDisplayName,
+  uploadAvatar,
+  uploadBackground,
+  resetBackground,
+  subscribe,
+} from "../store/authStore.js";
 
 const AUTH_PATH = "/auth";
 
@@ -46,6 +54,9 @@ export function renderAccountMenu() {
       <div class="account-menu__header"></div>
       <button type="button" class="account-menu__photo-trigger">Змінити фото</button>
       <input type="file" class="account-menu__photo-input" accept="image/*" hidden />
+      <button type="button" class="account-menu__bg-trigger">Фонове зображення</button>
+      <button type="button" class="account-menu__bg-reset" hidden>Прибрати фон</button>
+      <input type="file" class="account-menu__bg-input" accept="image/*" hidden />
       <a href="/sources" data-link class="account-menu__link">Джерела</a>
       <a href="/integrations" data-link class="account-menu__link">Інтеграції</a>
       <a href="/trash" data-link class="account-menu__link">Кошик</a>
@@ -58,6 +69,9 @@ export function renderAccountMenu() {
   const header = wrapper.querySelector(".account-menu__header");
   const photoTrigger = wrapper.querySelector(".account-menu__photo-trigger");
   const photoInput = wrapper.querySelector(".account-menu__photo-input");
+  const bgTrigger = wrapper.querySelector(".account-menu__bg-trigger");
+  const bgReset = wrapper.querySelector(".account-menu__bg-reset");
+  const bgInput = wrapper.querySelector(".account-menu__bg-input");
   const links = wrapper.querySelectorAll(".account-menu__link");
   const logoutButton = wrapper.querySelector(".account-menu__logout");
 
@@ -178,6 +192,9 @@ export function renderAccountMenu() {
     header
       .querySelector(".account-menu__name")
       .addEventListener("click", () => startEditingName(session));
+
+    bgTrigger.textContent = session.backgroundUrl ? "Змінити фон" : "Фонове зображення";
+    bgReset.hidden = !session.backgroundUrl;
   }
 
   trigger.addEventListener("click", togglePanel);
@@ -202,6 +219,42 @@ export function renderAccountMenu() {
     } finally {
       photoTrigger.disabled = false;
       photoTrigger.textContent = idleLabel;
+    }
+  });
+
+  bgTrigger.addEventListener("click", () => bgInput.click());
+
+  bgInput.addEventListener("change", async () => {
+    const file = bgInput.files[0];
+    bgInput.value = ""; // той самий файл можна буде вибрати ще раз (напр. після невдачі)
+    if (!file) return;
+
+    bgTrigger.disabled = true;
+    const idleLabel = bgTrigger.textContent;
+    bgTrigger.textContent = "Завантаження…";
+
+    try {
+      await uploadBackground(file);
+      render();
+    } catch (err) {
+      console.error(err);
+      window.alert("Не вдалося завантажити фонове зображення. Спробуйте ще раз.");
+    } finally {
+      bgTrigger.disabled = false;
+      bgTrigger.textContent = idleLabel;
+    }
+  });
+
+  bgReset.addEventListener("click", async () => {
+    bgReset.disabled = true;
+    try {
+      await resetBackground();
+      render();
+    } catch (err) {
+      console.error(err);
+      window.alert("Не вдалося прибрати фонове зображення. Спробуйте ще раз.");
+    } finally {
+      bgReset.disabled = false;
     }
   });
 

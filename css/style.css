@@ -109,6 +109,37 @@ body::after {
     radial-gradient(1px 1px at 35% 88%, rgba(238, 241, 251, 0.4), transparent);
 }
 
+/* Власне фонове зображення користувача (BackgroundImage.js +
+   меню акаунта, AccountMenu.js «Фонове зображення») — той самий шар,
+   що й вбудоване зоряне небо (position: fixed, за контентом),
+   порожній (без background-image), поки JS не встановить його з
+   session.backgroundUrl. */
+.user-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Коли є власне фото — вбудоване зоряне небо/світло вимикається
+   (інакше накладались би одне на одне), а поверх фото лягає темна
+   підкладка (той самий --overlay, що й у мобільного бекдропу
+   бічної панелі, nav.css), щоб текст і картки лишались читабельними
+   на будь-якому зображенні. */
+body.has-custom-bg::before,
+body.has-custom-bg::after {
+  display: none;
+}
+
+body.has-custom-bg .user-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--overlay);
+}
+
 /* Мобільно .nav ховає бічну панель за бургер-кнопкою (css/nav.css:
    .nav__panel стає position: fixed, випадає з потоку) — лишається
    лише тонка верхня смужка (.nav__mobile-bar), тож body повертається
