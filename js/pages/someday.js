@@ -17,7 +17,7 @@ import {
   completeTask,
   skipTask,
   moveTaskToTrash,
-  setTaskStatus,
+  changeTaskStatus,
   setTaskList,
   setTaskDueDate,
   setTaskRecurrence,
@@ -103,8 +103,7 @@ export async function renderSomeday(root) {
   }
 
   async function handleStatusChange(task, status) {
-    await setTaskCompleted(task.id, false);
-    await setTaskStatus(task.id, status);
+    await changeTaskStatus(task, status);
     await refreshAll();
   }
 

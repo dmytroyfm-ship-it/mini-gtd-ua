@@ -346,6 +346,27 @@ export async function setTaskStatus(id, status) {
   if (error) throw error;
 }
 
+// Обробник dropdown «Статус» у картці задачі (TaskCard.js) — той
+// самий один спільний шлях, що вже був лише в board.js
+// (moveTaskToColumn(), для drag-and-drop і власного dropdown дошки):
+// «Виконані» — не звичайне значення колонки status, а псевдо-опція
+// "done", що веде через completeTask() (щоб повторювані задачі й
+// далі коректно клонувались на наступний цикл, як і при галочці
+// «виконано»); будь-яке інше значення — знімає completed і ставить
+// звичайний статус, той самий шлях, що й раніше, — задача ніколи не
+// лишається «застряглою» серед виконаних, коли статус змінили на
+// щось інше. Потребує повний об'єкт задачі (не лише id) — саме через
+// completeTask(), якому для клонування повторення потрібні title/
+// note/list/tags/recurrence.
+export async function changeTaskStatus(task, status) {
+  if (status === "done") {
+    await completeTask(task);
+  } else {
+    await setTaskCompleted(task.id, false);
+    await setTaskStatus(task.id, status);
+  }
+}
+
 // Зміна списку (dropdown у картці задачі) — та сама колонка list,
 // що визначає, у якому зі списків («Вхідні», «Задачі» тощо) задача
 // зʼявляється; getTasks(list) фільтрує саме за нею.

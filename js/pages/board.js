@@ -162,10 +162,13 @@ export async function renderBoard(root) {
     });
   }
 
-  // Спільна логіка переходу в колонку — і для drag-and-drop, і для
-  // dropdown «Статус» у самій картці (та сама дія, два способи її
-  // викликати; картка ніколи не передає "done" — там немає такого
-  // пункту, є лише окремий чекбокс «виконано»).
+  // Спільна логіка переходу в колонку — і для drag-and-drop (лише
+  // taskId), і для dropdown «Статус» у самій картці (та сама дія, два
+  // способи її викликати; dropdown може передати й "done" —
+  // taskStore.changeTaskStatus() робить те саме для решти сторінок,
+  // але тут лишається власна версія: у drag-and-drop нема гарантії,
+  // що taskId є в tasksById, тож потрібен graceful fallback без
+  // повного об'єкта задачі, якого змагальна функція не має).
   async function moveTaskToColumn(taskId, columnKey) {
     if (columnKey === "done") {
       // completeTask() потребує повний об'єкт задачі (для

@@ -13,7 +13,7 @@ import {
   completeTask,
   skipTask,
   moveTaskToTrash,
-  setTaskStatus,
+  changeTaskStatus,
   setTaskList,
   setTaskDueDate,
   setTaskRecurrence,
@@ -87,11 +87,12 @@ export async function renderInbox(root) {
   }
 
   async function handleStatusChange(task, status) {
-    // Синхронізовано з дошкою (/board) — та сама логіка, що й у
-    // board.js: зміна статусу знімає позначку «виконано», інакше
-    // задача лишалась би застряглою серед виконаних на дошці.
-    await setTaskCompleted(task.id, false);
-    await setTaskStatus(task.id, status);
+    // Той самий taskStore.changeTaskStatus(), що й скрізь — і те
+    // саме джерело правди, що й дошка (/board): «Виконані» серед
+    // пунктів веде через completeTask() (повторення й далі коректно
+    // клонується), інакше знімає позначку «виконано» й ставить
+    // звичайний статус.
+    await changeTaskStatus(task, status);
     await refreshList();
   }
 

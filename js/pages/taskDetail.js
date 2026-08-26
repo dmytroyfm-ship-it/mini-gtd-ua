@@ -12,7 +12,7 @@ import {
   completeTask,
   skipTask,
   moveTaskToTrash,
-  setTaskStatus,
+  changeTaskStatus,
   setTaskList,
   setTaskDueDate,
   setTaskRecurrence,
@@ -109,8 +109,7 @@ export async function renderTaskDetail(root, params) {
   }
 
   async function handleStatusChange(t, status) {
-    await setTaskCompleted(t.id, false);
-    await setTaskStatus(t.id, status);
+    await changeTaskStatus(t, status);
     await loadTask();
   }
 

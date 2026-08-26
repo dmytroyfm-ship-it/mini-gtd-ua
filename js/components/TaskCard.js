@@ -8,6 +8,10 @@
 // дошки /board (drag-and-drop) — це навмисно один і той самий
 // dropdown-набір, синхронізований через єдине джерело правди в
 // базі: зміна тут одразу відображається на дошці, і навпаки.
+// «Виконані» серед пунктів — псевдо-опція ("done"), не справжнє
+// значення status (те саме поле completed, що й окрема галочка);
+// обробляється через taskStore.changeTaskStatus() (statusSelectValue()
+// нижче показує її, коли задача виконана).
 //
 // Мутації самої задачі (тег/статус/список/дедлайн/виконано/кошик)
 // віддаються нагору через handlers — той самий підхід, що вже є в
@@ -32,6 +36,15 @@ function escapeHtml(value) {
   const container = document.createElement("div");
   container.textContent = value;
   return container.innerHTML;
+}
+
+// Значення dropdown «Статус» — «Виконані» там псевдо-опція ("done"),
+// не справжнє значення поля status (task.completed — окреме булеве
+// поле, галочка поруч); показуємо її, коли задача виконана, незалежно
+// від того, який статус лишається "під капотом" (не змінюється, поки
+// не оберуть інший пункт — taskStore.changeTaskStatus()).
+function statusSelectValue(task) {
+  return task.completed ? "done" : task.status || "not_urgent";
 }
 
 // Date → "YYYY-MM-DD" за МІСЦЕВИМИ полями (getFullYear/getMonth/
@@ -151,6 +164,7 @@ export function renderTaskCard(task, handlers = {}) {
           <option value="not_urgent">Не термінові</option>
           <option value="daily">Повторювані</option>
           <option value="waiting">В очікуванні</option>
+          <option value="done">Виконані</option>
           <option value="cancelled">Скасовані</option>
         </select>
       </label>
@@ -210,7 +224,7 @@ export function renderTaskCard(task, handlers = {}) {
 
   // Значення <select> виставляються властивістю, не HTML-атрибутом
   // на <option> — так гарантовано підсвічується поточна опція.
-  card.querySelector(".task-card__status").value = task.status || "not_urgent";
+  card.querySelector(".task-card__status").value = statusSelectValue(task);
   card.querySelector(".task-card__list").value = task.list;
   card.querySelector(".task-card__recurrence").value = task.recurrence || "";
 
@@ -394,7 +408,7 @@ function wireStatusSelect(card, task, onStatusChange) {
       await onStatusChange(task, value);
     } catch (err) {
       console.error(err);
-      select.value = task.status || "not_urgent";
+      select.value = statusSelectValue(task);
       window.alert("Не вдалося змінити статус. Спробуйте ще раз.");
     } finally {
       select.disabled = false;
