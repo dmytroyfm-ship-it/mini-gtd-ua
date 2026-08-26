@@ -13,8 +13,7 @@
 import {
   getTasks,
   updateTask,
-  setTaskCompleted,
-  completeTask,
+  toggleTaskCompleted,
   skipTask,
   moveTaskToTrash,
   changeTaskStatus,
@@ -68,8 +67,7 @@ export function createListPage({ list, title, emptyText }) {
     }
 
     async function handleToggleCompleted(task, completed) {
-      if (completed) await completeTask(task);
-      else await setTaskCompleted(task.id, false);
+      await toggleTaskCompleted(task, completed);
       await refreshList();
     }
 

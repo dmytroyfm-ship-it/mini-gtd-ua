@@ -8,8 +8,7 @@
 import {
   searchTasks,
   updateTask,
-  setTaskCompleted,
-  completeTask,
+  toggleTaskCompleted,
   skipTask,
   moveTaskToTrash,
   changeTaskStatus,
@@ -103,8 +102,7 @@ export async function renderSearch(root) {
   }
 
   async function handleToggleCompleted(task, completed) {
-    if (completed) await completeTask(task);
-    else await setTaskCompleted(task.id, false);
+    await toggleTaskCompleted(task, completed);
     await refresh();
   }
 

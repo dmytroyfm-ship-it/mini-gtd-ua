@@ -24,7 +24,8 @@ import {
   updateTask,
   setTaskStatus,
   setTaskCompleted,
-  completeTask,
+  changeTaskStatus,
+  toggleTaskCompleted,
   skipTask,
   moveTaskToTrash,
   setTaskList,
@@ -68,7 +69,7 @@ export async function renderBoard(root) {
 
   const boardPage = root.querySelector(".board-page");
 
-  // Наповнюється в refreshBoard() — потрібен для completeTask() у
+  // Наповнюється в refreshBoard() — потрібен для changeTaskStatus() у
   // moveTaskToColumn() нижче (drag-and-drop знає лише taskId).
   let tasksById = new Map();
 
@@ -114,8 +115,9 @@ export async function renderBoard(root) {
     tasks = tasks.filter(isWindowActive);
 
     // Перетягування (handleDrop) знає лише taskId, не повний
-    // об'єкт — а completeTask() нижче потребує саме його
-    // (title/note/list/tags/status/recurrence для нової задачі).
+    // об'єкт — а changeTaskStatus()/completeTask() нижче потребують
+    // саме його (title/note/list/tags/status/recurrence для нової
+    // задачі, якщо повторювана).
     tasksById = new Map(tasks.map((task) => [task.id, task]));
 
     const buckets = { urgent: [], not_urgent: [], daily: [], done: [], cancelled: [], waiting: [] };
@@ -163,20 +165,25 @@ export async function renderBoard(root) {
   }
 
   // Спільна логіка переходу в колонку — і для drag-and-drop (лише
-  // taskId), і для dropdown «Статус» у самій картці (та сама дія, два
-  // способи її викликати; dropdown може передати й "done" —
-  // taskStore.changeTaskStatus() робить те саме для решти сторінок,
-  // але тут лишається власна версія: у drag-and-drop нема гарантії,
-  // що taskId є в tasksById, тож потрібен graceful fallback без
-  // повного об'єкта задачі, якого змагальна функція не має).
+  // taskId), і для dropdown «Статус» у самій картці. Задача є в
+  // tasksById (звичайний випадок — той самий getAllTasks(), що й
+  // намалював поточні картки) — той самий taskStore.changeTaskStatus(),
+  // що й решта сторінок (раніше тут була власна копія цієї гілки зі
+  // слабшим фолбеком, який для "done" міг мовчки пропустити
+  // клонування повторення — знахідка код-рев'ю). Фолбек нижче —
+  // лише для вузького стану гонки, коли задачі раптом нема в кеші
+  // (змінилась/зникла між останнім refreshBoard() і цим
+  // перетягуванням) і повного об'єкта для клонування повторення
+  // немає.
   async function moveTaskToColumn(taskId, columnKey) {
+    const task = tasksById.get(taskId);
+    if (task) {
+      await changeTaskStatus(task, columnKey);
+      return;
+    }
+
     if (columnKey === "done") {
-      // completeTask() потребує повний об'єкт задачі (для
-      // повторення — title/note/list/tags/status/recurrence нової
-      // задачі); tasksById заповнюється в refreshBoard().
-      const task = tasksById.get(taskId);
-      if (task) await completeTask(task);
-      else await setTaskCompleted(taskId, true);
+      await setTaskCompleted(taskId, true);
     } else {
       // Перетягнута/перемкнута назад із «Виконаних» задача має
       // реально покинути цю колонку — bucketOf() інакше й далі
@@ -197,8 +204,7 @@ export async function renderBoard(root) {
   }
 
   async function handleToggleCompleted(task, completed) {
-    if (completed) await completeTask(task);
-    else await setTaskCompleted(task.id, false);
+    await toggleTaskCompleted(task, completed);
     await refreshBoard();
   }
 

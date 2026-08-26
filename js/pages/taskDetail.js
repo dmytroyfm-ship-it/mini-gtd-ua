@@ -8,8 +8,7 @@
 import {
   getTaskById,
   updateTask,
-  setTaskCompleted,
-  completeTask,
+  toggleTaskCompleted,
   skipTask,
   moveTaskToTrash,
   changeTaskStatus,
@@ -89,12 +88,11 @@ export async function renderTaskDetail(root, params) {
   }
 
   async function handleToggleCompleted(t, completed) {
-    // Повторювана задача (t.recurrence) — completeTask() створює
-    // нову задачу на наступну дату; лишаємось на цій самій сторінці
-    // (тепер вона показує вже виконану задачу), нову можна знайти
-    // в списку — без несподіваного переходу.
-    if (completed) await completeTask(t);
-    else await setTaskCompleted(t.id, false);
+    // Повторювана задача (t.recurrence) — toggleTaskCompleted()
+    // створює нову задачу на наступну дату; лишаємось на цій самій
+    // сторінці (тепер вона показує вже виконану задачу), нову можна
+    // знайти в списку — без несподіваного переходу.
+    await toggleTaskCompleted(t, completed);
     await loadTask();
   }
 

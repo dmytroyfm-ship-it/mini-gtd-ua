@@ -9,8 +9,7 @@ import {
   getTasks,
   addTask,
   updateTask,
-  setTaskCompleted,
-  completeTask,
+  toggleTaskCompleted,
   skipTask,
   moveTaskToTrash,
   changeTaskStatus,
@@ -68,11 +67,10 @@ export async function renderInbox(root) {
 
   async function handleToggleCompleted(task, completed) {
     // Виконання повторюваної задачі (task.recurrence) саме створює
-    // нову задачу на наступну дату — completeTask() робить обидві
-    // дії разом; для звичайного зняття позначки чи задач без
-    // recurrence completeTask() поводиться як просте setTaskCompleted().
-    if (completed) await completeTask(task);
-    else await setTaskCompleted(task.id, false);
+    // нову задачу на наступну дату — toggleTaskCompleted() робить
+    // обидві дії разом (той самий шлях, що й changeTaskStatus() для
+    // dropdown статусу, в taskStore.js).
+    await toggleTaskCompleted(task, completed);
     await refreshList();
   }
 
