@@ -31,7 +31,7 @@ import { renderTaskList } from "../components/TaskList.js";
 const COLUMNS = [
   { key: "urgent", title: "Термінові" },
   { key: "not_urgent", title: "Не термінові" },
-  { key: "daily", title: "Щоденні" },
+  { key: "daily", title: "Повторювані" },
   { key: "done", title: "Виконані" },
   { key: "cancelled", title: "Скасовані" },
   { key: "waiting", title: "В очікуванні" },
