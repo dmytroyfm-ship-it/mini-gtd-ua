@@ -20,6 +20,22 @@ function escapeHtml(value) {
   return container.innerHTML;
 }
 
+// Друга лінія оборони поверх перевірки на самому feed-webhook/
+// (яка вже відкидає не-http(s) url при прийомі): escapeHtml() вище
+// екранує лише HTML-символи, не схему посилання — "javascript:..."
+// пройшов би без змін просто в атрибут href і виконався б по кліку
+// (XSS). Пост, уже занесений у базу до цієї перевірки на сервері,
+// теж має лишитись безпечним — тому та сама перевірка тут, на
+// клієнті, перед вставкою в href.
+function safeHref(url) {
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? url : "#";
+  } catch {
+    return "#";
+  }
+}
+
 function formatDate(value) {
   if (!value) return "";
   return new Date(value).toLocaleDateString("uk-UA", { day: "numeric", month: "short", year: "numeric" });
@@ -47,7 +63,7 @@ export function renderFeedCard(item, handlers = {}) {
     <div class="feed-card__actions">
       <button type="button" class="feed-card__inbox">✅ Додати у Вхідні</button>
       <button type="button" class="feed-card__skip">✖ Пропустити</button>
-      <a class="feed-card__open" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">🔗 Відкрити</a>
+      <a class="feed-card__open" href="${escapeHtml(safeHref(item.url))}" target="_blank" rel="noopener noreferrer">🔗 Відкрити</a>
     </div>
   `;
 

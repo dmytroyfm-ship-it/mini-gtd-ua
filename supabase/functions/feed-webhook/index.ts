@@ -71,9 +71,29 @@ async function translate(title: string, text: string): Promise<{ titleUk: string
   }
 }
 
+// Лише http(s) — url зберігається дослівно й рендериться напряму як
+// href у FeedCard.js (<a href="${escapeHtml(item.url)}">). escapeHtml()
+// екранує лише HTML-символи, не схему посилання — рядок "javascript:..."
+// не містить символів для екранування й пройшов би без змін просто в
+// атрибут href, виконавшись у контексті застосунку по кліку
+// (XSS-знахідка код-рев'ю). Джерело поста — зовнішній парсер, якому
+// довіряти вміст (у т.ч. url) не можна.
+function isSafeUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 async function ingestItem(item: IncomingItem): Promise<IngestResult> {
   if (!item.source_id || !item.title || !item.url) {
     return { ok: false, reason: "Обов'язкові поля: source_id, title, url." };
+  }
+
+  if (!isSafeUrl(item.url)) {
+    return { ok: false, reason: "url має бути http:// чи https:// посиланням." };
   }
 
   const { data: source, error: sourceError } = await supabase
