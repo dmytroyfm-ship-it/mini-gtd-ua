@@ -52,7 +52,7 @@
   border: none;
   border-radius: 999px;
   background: var(--accent-gradient);
-  color: var(--ink);
+  color: var(--accent-ink);
   font-family: var(--font-body);
   font-weight: 600;
   font-size: 0.9rem;

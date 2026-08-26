@@ -7,11 +7,13 @@ import { mountNav, refreshNav } from "./components/Nav.js";
 import { initBackground } from "./components/BackgroundImage.js";
 import { initRouter } from "./router.js";
 import { initAuth } from "./store/authStore.js";
+import { initTheme } from "./store/themeStore.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const navRoot = document.getElementById("nav-root");
   const pageRoot = document.getElementById("page-root");
 
+  initTheme();
   await initAuth();
 
   mountNav(navRoot);

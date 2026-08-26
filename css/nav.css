@@ -495,6 +495,7 @@
   text-overflow: ellipsis;
 }
 
+.account-menu__theme-toggle,
 .account-menu__photo-trigger,
 .account-menu__bg-trigger,
 .account-menu__bg-reset,
@@ -515,12 +516,22 @@
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+.account-menu__theme-toggle:hover,
 .account-menu__photo-trigger:hover,
 .account-menu__bg-trigger:hover,
 .account-menu__link:hover,
 .account-menu__logout:hover {
   background: var(--bg-raised);
   color: var(--ink);
+}
+
+/* Перемикач теми — окремий від профільних дій нижче (фото/фон),
+   тонка риска відділяє «налаштування застосунку» від «мого акаунта». */
+.account-menu__theme-toggle {
+  margin-bottom: 0.4rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
 }
 
 /* Менша, приглушеніша дія-посилання одразу під «Змінити фон» —

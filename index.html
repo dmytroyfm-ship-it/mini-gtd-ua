@@ -3,6 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Застосовує збережену тему (js/store/themeStore.js, той самий
+       ключ localStorage) синхронно, до першого пофарбованого пікселя
+       — без цього при світлій темі на мить блимала б темна (застосунок
+       темний за замовчуванням), поки не завантажиться й не виконається
+       app.js. -->
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem("mini-gtd-theme") === "light") {
+          document.documentElement.dataset.theme = "light";
+        }
+      } catch (e) {}
+    })();
+  </script>
   <title>Mini GTD</title>
   <meta name="description" content="Mini GTD — простий персональний менеджер задач за методологією GTD." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />

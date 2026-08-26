@@ -17,6 +17,7 @@ import {
   resetBackground,
   subscribe,
 } from "../store/authStore.js";
+import { getTheme, toggleTheme } from "../store/themeStore.js";
 
 const AUTH_PATH = "/auth";
 
@@ -52,6 +53,7 @@ export function renderAccountMenu() {
     <button type="button" class="account-menu__trigger" aria-haspopup="true" aria-expanded="false" aria-label="Акаунт"></button>
     <div class="account-menu__panel" hidden>
       <div class="account-menu__header"></div>
+      <button type="button" class="account-menu__theme-toggle"></button>
       <button type="button" class="account-menu__photo-trigger">Змінити фото</button>
       <input type="file" class="account-menu__photo-input" accept="image/*" hidden />
       <button type="button" class="account-menu__bg-trigger">Фонове зображення</button>
@@ -67,6 +69,7 @@ export function renderAccountMenu() {
   const trigger = wrapper.querySelector(".account-menu__trigger");
   const panel = wrapper.querySelector(".account-menu__panel");
   const header = wrapper.querySelector(".account-menu__header");
+  const themeToggle = wrapper.querySelector(".account-menu__theme-toggle");
   const photoTrigger = wrapper.querySelector(".account-menu__photo-trigger");
   const photoInput = wrapper.querySelector(".account-menu__photo-input");
   const bgTrigger = wrapper.querySelector(".account-menu__bg-trigger");
@@ -88,6 +91,12 @@ export function renderAccountMenu() {
   function togglePanel() {
     if (panel.hidden) openPanel();
     else closePanel();
+  }
+
+  // Підпис описує ЦІЛЬ кліку (яку тему увімкне), а не поточну — так
+  // само, як типові перемикачі теми в інших застосунках.
+  function updateThemeToggle() {
+    themeToggle.textContent = getTheme() === "dark" ? "☀️ Світла тема" : "🌙 Темна тема";
   }
 
   function startEditingName(session) {
@@ -199,6 +208,11 @@ export function renderAccountMenu() {
 
   trigger.addEventListener("click", togglePanel);
 
+  themeToggle.addEventListener("click", () => {
+    toggleTheme();
+    updateThemeToggle();
+  });
+
   photoTrigger.addEventListener("click", () => photoInput.click());
 
   photoInput.addEventListener("change", async () => {
@@ -286,6 +300,7 @@ export function renderAccountMenu() {
   // момент, не тільки при переході між сторінками.
   subscribe(render);
 
+  updateThemeToggle();
   render();
 
   return { el: wrapper, refresh: render };

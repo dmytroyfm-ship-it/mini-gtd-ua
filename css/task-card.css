@@ -185,7 +185,7 @@
 .task-card__edit-save {
   background: var(--accent);
   border: none;
-  color: var(--ink);
+  color: var(--accent-ink);
 }
 
 .task-card__edit-save:hover {
@@ -512,7 +512,7 @@
 
 .task-card__ai-breakdown:hover {
   background: var(--accent-dim);
-  color: var(--ink);
+  color: var(--accent-ink);
 }
 
 .task-card__ai-breakdown:disabled {
@@ -608,7 +608,7 @@
   left: 50%;
   width: 4px;
   height: 7px;
-  border: solid var(--ink);
+  border: solid var(--accent-ink);
   border-width: 0 1.5px 1.5px 0;
   transform: translate(-50%, -60%) rotate(45deg);
 }

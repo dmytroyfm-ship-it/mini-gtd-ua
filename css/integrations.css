@@ -70,7 +70,7 @@
   background: var(--accent-gradient);
   border: none;
   border-radius: 999px;
-  color: var(--ink);
+  color: var(--accent-ink);
   font-family: var(--font-body);
   font-size: 0.88rem;
   font-weight: 600;
