@@ -20,15 +20,12 @@ import {
   setTaskRecurrenceWindow,
   setTaskTags,
 } from "../store/taskStore.js";
-import { suggestNextTaskWithAI } from "../store/aiStore.js";
 import { renderTaskForm } from "../components/TaskForm.js";
 import { renderTaskList } from "../components/TaskList.js";
-import { renderNextTaskSuggestion } from "../components/NextTaskSuggestion.js";
 
 export async function renderInbox(root) {
   root.innerHTML = `<h1 class="page__title">Вхідні</h1>`;
 
-  root.appendChild(renderNextTaskSuggestion(handleSuggestNextTask));
   root.appendChild(renderTaskForm(handleAdd));
 
   let listSlot = document.createElement("p");
@@ -126,22 +123,6 @@ export async function renderInbox(root) {
   async function handleAddTag(task, tag) {
     await setTaskTags(task.id, [...(task.tags || []), tag]);
     await refreshList();
-  }
-
-  // До 10 задач зі списку «Задачі» (list = "next") — саме звідти,
-  // а не «Вхідних», бо там ще нерозібрані нотатки, а не готові до
-  // виконання кроки.
-  async function handleSuggestNextTask() {
-    const tasks = await getTasks("next");
-    if (tasks.length === 0) return null;
-
-    const candidates = tasks.slice(0, 10).map((t) => ({ id: t.id, title: t.title }));
-    const { taskId, reason } = await suggestNextTaskWithAI(candidates);
-
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) throw new Error("ШІ повернув задачу поза списком.");
-
-    return { task, reason };
   }
 
   await refreshList();

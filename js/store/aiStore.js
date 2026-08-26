@@ -20,14 +20,3 @@ export async function breakdownTaskWithAI(title) {
   if (data?.error) throw new Error(data.error);
   return data.steps;
 }
-
-// tasks: [{ id, title }]. Повертає { taskId, reason }.
-export async function suggestNextTaskWithAI(tasks) {
-  const { data, error } = await supabase.functions.invoke("ai-assist", {
-    body: { type: "next-task", tasks },
-  });
-
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-  return { taskId: data.taskId, reason: data.reason };
-}

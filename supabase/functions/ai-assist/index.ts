@@ -1,10 +1,7 @@
-// Проксі до Groq LLM API для двох AI-фіч Mini GTD:
+// Проксі до Groq LLM API для AI-фічі Mini GTD:
 //   type: "breakdown"  — розбити задачу на кроки-підзадачі
 //                        (js/components/TaskCard.js, кнопка
 //                        «✨ Розбити на кроки»)
-//   type: "next-task"  — обрати одну задачу зі списку «Задачі» для
-//                        швидкої перемоги (js/pages/inbox.js,
-//                        кнопка «✨ Що зробити зараз?»)
 //
 // На відміну від telegram-webhook/daily-reminder, цю функцію
 // викликає лише сам застосунок від імені залогіненого користувача
@@ -44,34 +41,6 @@ async function handleBreakdown(title: unknown): Promise<string[]> {
   return steps.slice(0, 8);
 }
 
-async function handleNextTask(tasks: unknown): Promise<{ taskId: string; reason: string }> {
-  if (!Array.isArray(tasks) || tasks.length === 0) {
-    throw new Error("Порожній список задач.");
-  }
-
-  const candidates = tasks.slice(0, 10) as Array<{ id: string; title: string }>;
-  const list = candidates.map((t, i) => `${i + 1}. [${t.id}] ${t.title}`).join("\n");
-
-  const result = await callGroqJSON(
-    "Ти — асистент продуктивності в GTD-застосунку. З наведеного списку " +
-      "задач вибери ОДНУ, яку варто зробити прямо зараз для швидкої " +
-      "перемоги (найпростіша, найшвидша чи найважливіша — на твій " +
-      "розсуд), і поясни чому — одне-два речення українською. Відповідай " +
-      'ЛИШЕ JSON-об\'єктом формату {"task_id": "...", "reason": "..."}, ' +
-      "де task_id — рівно один з ID зі списку, без жодного іншого тексту.",
-    `Список задач:\n${list}`
-  );
-
-  const taskId = typeof result.task_id === "string" ? result.task_id : null;
-  const reason = typeof result.reason === "string" ? result.reason.trim() : "";
-
-  if (!taskId || !candidates.some((t) => t.id === taskId)) {
-    throw new Error("ШІ повернув задачу поза списком.");
-  }
-
-  return { taskId, reason };
-}
-
 // На відміну від telegram-webhook/daily-reminder (їх викликає лише
 // інший сервер), цю функцію викликає браузер напряму
 // (supabase.functions.invoke() в aiStore.js) — без CORS-заголовків
@@ -109,10 +78,6 @@ Deno.serve(async (req) => {
   try {
     if (body.type === "breakdown") {
       return json({ steps: await handleBreakdown(body.title) });
-    }
-
-    if (body.type === "next-task") {
-      return json(await handleNextTask(body.tasks));
     }
 
     return json({ error: "Невідомий тип запиту." });
