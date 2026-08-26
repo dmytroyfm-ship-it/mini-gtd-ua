@@ -26,6 +26,11 @@
 //   due_date (який могло обрізати через короткий місяць) — так
 //   задача на 31-е після лютого сама повертається до 31-го в
 //   березні, а не застрягає на 28-му назавжди.
+// @property {string|null} completed_at — момент, коли completed
+//   стало true (для звіту в «Історії»; на відміну від updated_at не
+//   перезаписується пізнішим автоперенесенням у list "archive").
+// @property {string|null} cancelled_at — те саме для моменту, коли
+//   status став "cancelled".
 // @property {string|null} deleted_at
 // @property {string} created_at
 // @property {string} updated_at
@@ -59,12 +64,34 @@ export async function getTasks(list) {
   return data;
 }
 
-// Усі активні задачі користувача, незалежно від list — для дошки
-// (/board), яка сама розкладає їх по колонках за status/completed.
+// Усі активні задачі користувача для дошки (/board), яка сама
+// розкладає їх по колонках за status/completed. Виключає list
+// "archive" (Історія — вже оброблені, автоперенесені о 22:30,
+// їм на дошці більше нема чого робити) і "read_watch" (Читати/
+// Дивитись — це просто матеріали на потім, не робочі задачі; на
+// дошці лише те, чим справді керуєш).
 export async function getAllTasks() {
   const { data, error } = await supabase
     .from("tasks")
     .select("*")
+    .is("deleted_at", null)
+    .neq("list", "archive")
+    .neq("list", "read_watch")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data;
+}
+
+// Задачі статусу "В очікуванні" незалежно від їхнього list —
+// показуються окремим розділом на сторінці «Колись» (someday.js),
+// поруч зі списком someday, але не змішані з ним (окремий запит,
+// а не фільтр по одному й тому самому масиву).
+export async function getWaitingTasks() {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("status", "waiting")
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
@@ -102,8 +129,14 @@ export async function updateTask(id, values) {
   if (error) throw error;
 }
 
+// completed_at ставиться/скидається разом із completed — окремий
+// момент виконання для звіту в «Історії» (не updated_at, який
+// пізніше перезапише автоперенесення в list "archive").
 export async function setTaskCompleted(id, completed) {
-  const { error } = await supabase.from("tasks").update({ completed }).eq("id", id);
+  const { error } = await supabase
+    .from("tasks")
+    .update({ completed, completed_at: completed ? new Date().toISOString() : null })
+    .eq("id", id);
 
   if (error) throw error;
 }
@@ -244,9 +277,14 @@ export async function skipTask(task) {
 
 // Статус — той самий dropdown у картці задачі й ті самі колонки
 // дошки /board (drag-and-drop туди теж викликає цю функцію) —
-// єдине поле, єдине джерело правди для обох місць.
+// єдине поле, єдине джерело правди для обох місць. cancelled_at —
+// той самий принцип, що й completed_at вище: ставиться при переході
+// на "cancelled", скидається при переході геть від нього.
 export async function setTaskStatus(id, status) {
-  const { error } = await supabase.from("tasks").update({ status }).eq("id", id);
+  const { error } = await supabase
+    .from("tasks")
+    .update({ status, cancelled_at: status === "cancelled" ? new Date().toISOString() : null })
+    .eq("id", id);
 
   if (error) throw error;
 }
@@ -318,6 +356,38 @@ export async function restoreTask(id) {
 // Остаточне видалення — реальний DELETE, рядок зникає з бази.
 export async function deleteTaskPermanently(id) {
   const { error } = await supabase.from("tasks").delete().eq("id", id);
+
+  if (error) throw error;
+}
+
+// Історія (/history): задачі, автоматично перенесені сюди о 22:30
+// (pg_cron, supabase/migrations/20260826030000_...) — виконані чи
+// скасовані, list = "archive". Сортування — updated_at (момент
+// самого перенесення, той самий для всього дня одразу; для звіту по
+// датах сторінка сама читає completed_at/cancelled_at кожної задачі).
+export async function getArchivedTasks() {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("list", "archive")
+    .is("deleted_at", null)
+    .order("updated_at", { ascending: false });
+
+  if (error) throw error;
+  return data;
+}
+
+// Повернення задачі з «Історії» назад у «Вхідні» (history.js, кнопка
+// «Повернути у Вхідні» — доступна для всього, крім справді виконаних:
+// скасовані задачі, і про всяк випадок — старі записи в архіві, що
+// не є ні виконаними, ні скасованими). Статус скидається на
+// дефолтний "not_urgent", інакше задача одразу знову виглядала б
+// скасованою; cancelled_at очищається.
+export async function restoreFromHistory(id) {
+  const { error } = await supabase
+    .from("tasks")
+    .update({ list: "inbox", status: "not_urgent", cancelled_at: null })
+    .eq("id", id);
 
   if (error) throw error;
 }

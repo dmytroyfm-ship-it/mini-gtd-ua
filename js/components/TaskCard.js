@@ -139,12 +139,17 @@ export function renderTaskCard(task, handlers = {}) {
       </label>
       <label class="task-card__field">
         <span class="task-card__field-label">Список</span>
+        <!-- Немає пункту "Історія" (list: archive) — туди задачі
+             потрапляють лише автоматично, о 22:30, коли вже виконані
+             чи скасовані (supabase/migrations/20260826030000_...).
+             Ручний вибір дозволив би завісити задачу в архіві, не
+             виконавши й не скасувавши її — HistoryItem.js тоді
+             показав би її як "виконано", хоча це не так. -->
         <select class="task-card__list">
           <option value="inbox">Вхідні</option>
           <option value="next">Задачі</option>
           <option value="read_watch">Читати / Дивитись</option>
           <option value="someday">Колись</option>
-          <option value="archive">Архів</option>
         </select>
       </label>
     </div>

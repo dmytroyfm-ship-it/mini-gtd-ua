@@ -30,3 +30,18 @@
   font-size: 1rem;
   line-height: 1.6;
 }
+
+/* Два незалежні розділи на одній сторінці (someday.js: «Колись» +
+   «В очікуванні») — той самий .page__title зверху, кожен розділ
+   має власний менший заголовок. */
+.someday-section + .someday-section {
+  margin-top: 2.5rem;
+}
+
+.someday-section__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--ink);
+}

@@ -8,7 +8,7 @@ import { renderInbox } from "./pages/inbox.js";
 import { renderNext } from "./pages/next.js";
 import { renderReadWatch } from "./pages/readWatch.js";
 import { renderSomeday } from "./pages/someday.js";
-import { renderArchive } from "./pages/archive.js";
+import { renderHistory } from "./pages/history.js";
 import { renderBoard } from "./pages/board.js";
 import { renderTaskDetail } from "./pages/taskDetail.js";
 import { renderTrash } from "./pages/trash.js";
@@ -29,7 +29,7 @@ const ROUTES = [
   { path: "/task/:id", title: "Задача", render: renderTaskDetail, protected: true },
   { path: "/list/read_watch", title: "Читати / Дивитись", render: renderReadWatch, protected: true },
   { path: "/list/someday", title: "Колись", render: renderSomeday, protected: true },
-  { path: "/list/archive", title: "Архів", render: renderArchive, protected: true },
+  { path: "/history", title: "Історія", render: renderHistory, protected: true },
   { path: "/sources", title: "Джерела", render: renderSources, protected: true },
   { path: "/feed", title: "Стрічка", render: renderFeed, protected: true },
   { path: "/trash", title: "Кошик", render: renderTrash, protected: true },
