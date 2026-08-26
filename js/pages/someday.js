@@ -13,8 +13,7 @@ import {
   getTasks,
   getWaitingTasks,
   updateTask,
-  setTaskCompleted,
-  completeTask,
+  toggleTaskCompleted,
   skipTask,
   moveTaskToTrash,
   changeTaskStatus,
@@ -57,7 +56,14 @@ export async function renderSomeday(root) {
   async function refreshSomeday() {
     let nextEl;
     try {
-      const tasks = await getTasks("someday");
+      // status === "waiting" — виключено: такі задачі вже показані в
+      // розділі «В очікуванні» нижче (getWaitingTasks(), незалежно
+      // від list). Без цього фільтра задача одночасно list: "someday"
+      // і status: "waiting" (цілком звичайний випадок — "колись
+      // запитаю Х, але чекаю на Y") показувалась би в ОБОХ розділах
+      // одразу, двома незалежними рядками з окремими handlers, що
+      // розсинхронізувались би до наступного refreshAll().
+      const tasks = (await getTasks("someday")).filter((task) => task.status !== "waiting");
       nextEl = renderTaskList(tasks, cardHandlers, "Тут з'являться задачі, перенесені сюди зі «Вхідних».");
     } catch (err) {
       console.error(err);
@@ -87,8 +93,7 @@ export async function renderSomeday(root) {
   }
 
   async function handleToggleCompleted(task, completed) {
-    if (completed) await completeTask(task);
-    else await setTaskCompleted(task.id, false);
+    await toggleTaskCompleted(task, completed);
     await refreshAll();
   }
 

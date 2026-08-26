@@ -207,8 +207,11 @@ export async function setTaskCompleted(id, completed) {
 // без "Z" — так параситься за специфікацією), і toISOString() у
 // таймзоні з позитивним зсувом (Київ, UTC+2/+3) відкочував би їх на
 // день назад (опівніч 1 вересня за Києвом — це 31 серпня ~21:00 UTC;
-// саме цей баг користувач і побачив у «Початку періоду»).
-function toLocalDateString(date) {
+// саме цей баг користувач і побачив у «Початку періоду»). Експортовано
+// — TaskCardDueDate.js бере той самий фікс звідси, замість власної
+// копії (знахідка код-рев'ю: обидва файли в тому самому графі
+// ES-модулів, дублювати не було потреби).
+export function toLocalDateString(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
@@ -224,11 +227,19 @@ function toLocalDateString(date) {
 // останнім днем свого місяця (наприклад, 30-е в 31-денному місяці),
 // зберігається буквально — те саме число, обрізане лише якщо в
 // якомусь місяці його справді нема (Math.min нижче, в nextDueDate).
+//
+// day >= 29, не просто day === lastDayOfMonth: 28 число ІСНУЄ в
+// кожному місяці року, тож дедлайн 28 лютого (невисокосний рік) —
+// це майже напевно буквально "28-ме", а не "останній день місяця"
+// (типовий приклад — щомісячний платіж по 28-х); без цієї межі
+// сентинел хибно спрацював би саме для 28 лютого, і березневий
+// дедлайн переїжджав би на 31-е замість очікуваного 28-го (знахідка
+// код-рев'ю). 29/30/31 — і далі сентинел, як і задумано вище.
 function computeAnchorDay(dueDate) {
   const date = new Date(`${dueDate}T00:00:00`);
   const day = date.getDate();
   const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  return day === lastDayOfMonth ? 31 : day;
+  return day >= 29 && day === lastDayOfMonth ? 31 : day;
 }
 
 // recurrence: "daily" | "weekly" | "monthly" | null. dueDate —
@@ -242,6 +253,22 @@ export async function setTaskRecurrence(id, recurrence, dueDate) {
   const values = { recurrence };
   if (recurrence === "monthly" && dueDate) {
     values.recurrence_anchor_day = computeAnchorDay(dueDate);
+  } else if (recurrence !== "monthly") {
+    // Анкер має сенс лише для monthly — переходячи на weekly/daily/
+    // "не повторюється", лишається чистити старе значення (той самий
+    // клас багу, що й з recurrence_window_days нижче).
+    values.recurrence_anchor_day = null;
+  }
+
+  // Період («Початок періоду») має сенс лише для weekly/monthly —
+  // TaskCardDueDate.js ховає саме поле інакше. Без цього переведена
+  // на "Щодня"/"Не повторюється" задача лишала б старе значення
+  // recurrence_window_days у базі — невидиме (поле сховане) й
+  // незмінне, а isWindowActive() (для дошки /board) і далі гейтила б
+  // задачу за ним, ніби вона все ще в періоді, хоча користувач про
+  // це навіть не здогадається (знахідка код-рев'ю).
+  if (recurrence !== "weekly" && recurrence !== "monthly") {
+    values.recurrence_window_days = null;
   }
 
   const { error } = await supabase.from("tasks").update(values).eq("id", id);
@@ -378,10 +405,40 @@ export async function setTaskStatus(id, status) {
 export async function changeTaskStatus(task, status) {
   if (status === "done") {
     await completeTask(task);
-  } else {
-    await setTaskCompleted(task.id, false);
-    await setTaskStatus(task.id, status);
+    return;
   }
+
+  // Один запит замість двох послідовних (setTaskCompleted() +
+  // setTaskStatus()) — те саме логічне «зняти виконано, поставити
+  // статус» одним UPDATE (знахідка код-рев'ю: раніше кожна зміна
+  // статусу з будь-якої з 6 сторінок платила подвійну затримку
+  // мережі за один логічний запис).
+  const { error } = await supabase
+    .from("tasks")
+    .update({
+      completed: false,
+      completed_at: null,
+      status,
+      cancelled_at: status === "cancelled" ? new Date().toISOString() : null,
+    })
+    .eq("id", task.id);
+
+  if (error) throw error;
+}
+
+// Обробник чекбокса «виконано» — той самий принцип, що й
+// changeTaskStatus() вище (обидва обробляють одну реальну дію двома
+// різними елементами керування картки): completed → completeTask()
+// (повторювані задачі клонуються на наступний цикл), не completed →
+// звичайне setTaskCompleted(false). Раніше це тіло було буквально
+// скопійоване в 6 файлах сторінок (inbox.js/someday.js/taskDetail.js/
+// listPage.js/search.js/board.js) — винесено сюди одним місцем
+// (знахідка код-рев'ю), щоб майбутня зміна цієї поведінки (напр.
+// новий побічний ефект при виконанні) не могла випадково лишитись
+// застосованою лише в частині сторінок.
+export async function toggleTaskCompleted(task, completed) {
+  if (completed) await completeTask(task);
+  else await setTaskCompleted(task.id, false);
 }
 
 // Зміна списку (dropdown у картці задачі) — та сама колонка list,

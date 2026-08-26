@@ -35,17 +35,25 @@ export function renderTaskCardMeta(task, handlers = {}) {
     </label>
     <label class="task-card__field">
       <span class="task-card__field-label">Список</span>
-      <!-- Немає пункту "Історія" (list: archive) — туди задачі
-           потрапляють лише автоматично, о 22:30, коли вже виконані
-           чи скасовані (supabase/migrations/20260826030000_...).
-           Ручний вибір дозволив би завісити задачу в архіві, не
-           виконавши й не скасувавши її — HistoryItem.js тоді
-           показав би її як "виконано", хоча це не так. -->
+      <!-- Немає пункту "Історія" (list: archive) для звичайного
+           вибору — туди задачі потрапляють лише автоматично, о
+           22:30, коли вже виконані чи скасовані (supabase/
+           migrations/20260826030000_...). Ручний вибір дозволив би
+           завісити задачу в архіві, не виконавши й не скасувавши її
+           — HistoryItem.js тоді показав би її як "виконано", хоча це
+           не так. Але якщо задача ВЖЕ там (typical: відкрито з
+           пошуку — searchTasks() шукає й по «Історії») — треба
+           показати саме її, а не порожній вибір (select.value нижче
+           = "archive" без жодного відповідного <option> дає
+           selectedIndex: -1, виглядає зламаним): додаємо пункт лише
+           для цього конкретного випадку, disabled — видно, але
+           обрати назад не можна (знахідка код-рев'ю). -->
       <select class="task-card__list">
         <option value="inbox">Вхідні</option>
         <option value="next">Задачі</option>
         <option value="read_watch">Читати / Дивитись</option>
         <option value="someday">Колись</option>
+        ${task.list === "archive" ? `<option value="archive" disabled>Архів</option>` : ""}
       </select>
     </label>
   `;
