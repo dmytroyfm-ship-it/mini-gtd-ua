@@ -445,6 +445,15 @@ Telegram, тоді POST на `WHISPER_API_BASE_URL` (дефолт — Groq,
 `parseReportRange()`, лише без потреби набирати текст після
 `/report`, якщо в меню бота (нижче) саме тицяєш команду.
 
+**Команда `/tasks`** — той самий дайджест, що й ранкове нагадування
+(`daily-reminder`, будні 9:00), лише на вимогу, в будь-який момент.
+Побудова (розкладання по блоках, форматування) винесена в
+`_shared/dailyDigest.ts` — спільна для `daily-reminder` й
+`telegram-webhook`, різний лише рядок привітання зверху ("🔔 Доброго
+ранку! ..." проти "📋 Задачі зараз:"). Задачі, позначені виконаними,
+у вибірку (`completed = false`) і так не потрапляють — свіжий запит
+сам це враховує, окремо виключати "вже виконане" не треба.
+
 **Меню команд бота** («/» у Telegram показує список із описом —
 тицяєш замість набору руками) — реєструється окремо від коду, один
 раз, через `setMyCommands` (сам бачить лише той, хто знає bot token,
@@ -455,6 +464,7 @@ curl -X POST "https://api.telegram.org/bot<токен_від_BotFather>/setMyCom
   -H "Content-Type: application/json" \
   -d '{"commands":[
     {"command":"start","description":"Прив'\''язати акаунт до бота"},
+    {"command":"tasks","description":"Список задач зараз"},
     {"command":"report","description":"Звіт за минулий тиждень"},
     {"command":"report_week","description":"Звіт за поточний тиждень"},
     {"command":"report_month","description":"Звіт за цей місяць"},
@@ -834,13 +844,17 @@ GTD додаток/
 │   │   ├── _shared/
 │   │   │   ├── groqChat.ts        — спільний виклик Groq chat completions (JSON-
 │   │   │   │                     режим), для ai-assist/ і feed-webhook/
-│   │   │   └── dateHelpers.ts      — дати за київським часом (todayInKyiv,
-│   │   │                         mondayOf, monthRange тощо), для daily-reminder/
-│   │   │                         і telegram-webhook/ (/report)
+│   │   │   ├── dateHelpers.ts      — дати за київським часом (todayInKyiv,
+│   │   │   │                     mondayOf, monthRange тощо), для daily-reminder/
+│   │   │   │                     і telegram-webhook/ (/report)
+│   │   │   └── dailyDigest.ts       — побудова дайджесту задач (розкладання по
+│   │   │                         блоках, форматування), для daily-reminder/
+│   │   │                         (9:00) і telegram-webhook/ (/tasks, на вимогу)
 │   │   ├── telegram-webhook/
 │   │   │   └── index.ts          — приймає Update від Telegram, створює задачу
-│   │   │                         (текст чи Whisper-транскрипція голосового) чи
-│   │   │                         звіт по «Історії» (/report), відповідає в чат
+│   │   │                         (текст чи Whisper-транскрипція голосового),
+│   │   │                         дайджест на вимогу (/tasks) чи звіт по
+│   │   │                         «Історії» (/report), відповідає в чат
 │   │   │                         (Deno, service_role key)
 │   │   ├── daily-reminder/
 │   │   │   └── index.ts          — будні о 9:00 (pg_cron) перевіряє прострочені

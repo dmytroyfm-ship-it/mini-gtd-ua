@@ -38,6 +38,14 @@
 //                          меню (кнопка "/" у Telegram) реєструється
 //                          окремо, один раз, через setMyCommands —
 //                          docs/ARCHITECTURE.md.
+//   6. /tasks             — той самий дайджест, що й ранкове
+//                          нагадування (daily-reminder/, будні
+//                          9:00), на вимогу в будь-який момент;
+//                          виконані задачі й так не потрапляють у
+//                          вибірку (completed = false), не треба
+//                          окремо їх виключати. Побудова дайджесту —
+//                          спільна з daily-reminder/ через
+//                          _shared/dailyDigest.ts.
 //
 // Довірений сервер — service_role key (повний доступ в обхід RLS,
 // бо на момент запиту немає Supabase-сесії користувача, лише
@@ -53,9 +61,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callGroqJSON } from "../_shared/groqChat.ts";
 import { addDays, kyivDateOf, mondayOf, monthRange, todayInKyiv } from "../_shared/dateHelpers.ts";
+import { buildDigestMessage, type DigestTask } from "../_shared/dailyDigest.ts";
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 const TELEGRAM_WEBHOOK_SECRET = Deno.env.get("TELEGRAM_WEBHOOK_SECRET") ?? "";
+// Той самий APP_URL, що й у daily-reminder/ — посилання внизу
+// дайджесту команди /tasks.
+const APP_URL = Deno.env.get("APP_URL") ?? "https://ephemeral-daffodil-8d52cc.netlify.app";
 const WHISPER_API_KEY = Deno.env.get("WHISPER_API_KEY") ?? "";
 // Дефолт — Groq: OpenAI-сумісний ендпоінт /audio/transcriptions,
 // безкоштовний ліміт вистачає для особистого використання. Щоб
@@ -205,7 +217,7 @@ async function handleStart(chatId: number, code: string | undefined, from: Recor
 
   if (updateError) throw updateError;
 
-  await sendMessage(chatId, "✅ Прив'язано! Тепер надсилай сюди текст або голосове повідомлення — додам задачу у «Вхідні». /report — звіт по «Історії».");
+  await sendMessage(chatId, "✅ Прив'язано! Тепер надсилай сюди текст або голосове повідомлення — додам задачу у «Вхідні». /tasks — список задач зараз, /report — звіт по «Історії».");
 }
 
 type ReportRange = { from: string | null; to: string | null; label: string };
@@ -324,6 +336,31 @@ async function handleReport(chatId: number, userId: string, argsText: string) {
   );
 }
 
+// /tasks — той самий дайджест, що й ранкове нагадування
+// (daily-reminder/), лише на вимогу, у будь-який момент — не тільки
+// о 9:00 в будні. Задачі, які вже позначено виконаними, у вибірку
+// (completed = false) і так не потрапляють — свіжий запит сам це
+// враховує, спеціальної фільтрації "без виконаних" не треба.
+async function handleTasks(chatId: number, userId: string) {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("id, user_id, title, due_date, status, recurrence_window_days")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .eq("completed", false)
+    .in("list", ["inbox", "next"])
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error(error);
+    await sendMessage(chatId, "Не вдалося завантажити задачі. Спробуй ще раз.");
+    return;
+  }
+
+  const tasks = (data ?? []) as DigestTask[];
+  await sendMessage(chatId, buildDigestMessage(tasks, "📋 Задачі зараз:", APP_URL));
+}
+
 async function handleMessage(message: Record<string, unknown>) {
   const chat = message.chat as { id: number };
   const chatId = chat.id;
@@ -345,6 +382,11 @@ async function handleMessage(message: Record<string, unknown>) {
     const command = text.split(/\s+/)[0];
     const argsText = COMMAND_TO_ARGS[command] ?? text.slice(command.length);
     await handleReport(chatId, userId, argsText);
+    return;
+  }
+
+  if (text === "/tasks") {
+    await handleTasks(chatId, userId);
     return;
   }
 

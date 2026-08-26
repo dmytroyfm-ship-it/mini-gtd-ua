@@ -1,31 +1,24 @@
 // Щоденне нагадування в Telegram (/functions/v1/daily-reminder).
 //
 // Не приймає повідомлень від Telegram (на відміну від
-// telegram-webhook/) — сама викликається щодня за розкладом
-// (pg_cron + pg_net, див.
-// supabase/migrations/20260825010000_setup_daily_reminder_cron.sql)
-// і сама надсилає повідомлення користувачам.
+// telegram-webhook/) — сама викликається щодня о 9:00 у будні
+// (пн-пт, pg_cron + pg_net, див.
+// supabase/migrations/20260825010000_setup_daily_reminder_cron.sql
+// і 20260826040000_daily_reminder_weekdays_only.sql — користувач не
+// працює в суботу/неділю) і сама надсилає повідомлення користувачам.
 //
-// Формує повний список задач на день — усі активні (не в кошику, не
-// виконані) задачі зі списків «Вхідні» й «Задачі» (list: inbox/next
-// — те, що справді на порядку денному; «Колись», «Читати/Дивитись»
-// і «Архів» свідомо відкладені самим користувачем, у щоденний
-// дайджест не потрапляють), розкладені по блоках:
-//   • прострочені   — весь період (з урахуванням recurrence_window_days,
-//                      якщо є) уже минув, due_date < сьогодні
-//   • на сьогодні    — сьогодні входить у період [початок..due_date]
-//   • на завтра      — завтра входить у період, а сьогодні — ще ні
-//   • термінові      — status = "urgent", якщо дедлайн не потрапив
-//                      у жоден з блоків вище (чи дедлайну нема);
-//                      термінова задача, що вже в одному з блоків
-//                      вище за датою, лишається там, лише рядок
-//                      додатково позначається 🔴.
-//   • інші           — решта задач із «Вхідні»/«Задачі», що не
-//                      підпали під жоден критерій вище.
+// Бере з `tasks` усі активні (не виконані, не в кошику) задачі зі
+// списків «Вхідні» й «Задачі» (list: inbox/next — те, що справді на
+// порядку денному; «Колись», «Читати/Дивитись» і «Історія» свідомо
+// відкладені самим користувачем, у дайджест не потрапляють) і для
+// кожного user_id будує дайджест — саму побудову (розкладання по
+// блоках, форматування) робить `_shared/dailyDigest.ts`, спільний з
+// командою /tasks у telegram-webhook/ (той самий список на вимогу).
 // Немає жодної задачі в цих двох списках чи нема прив'язки Telegram
 // — мовчки нічого не надсилає.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildDigestMessage, type DigestTask } from "../_shared/dailyDigest.ts";
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
@@ -57,103 +50,6 @@ async function sendMessage(chatId: number, text: string) {
   });
 }
 
-// "Сьогодні"/"завтра" — за київським часом, не UTC (сервер завжди в
-// UTC, а нагадування — для користувача в Україні). en-CA форматує
-// рівно як YYYY-MM-DD, зручно порівнювати з датою в базі (тип date).
-function todayInKyiv(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Kyiv" }).format(new Date());
-}
-
-function addDays(dateStr: string, days: number): string {
-  const date = new Date(`${dateStr}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-// "2026-08-25" → "25-08-2026" (ДД-ММ-РРРР, за проханням користувача).
-function formatDueDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split("-");
-  return `${day}-${month}-${year}`;
-}
-
-type Task = {
-  id: string;
-  user_id: string;
-  title: string;
-  due_date: string | null;
-  status: string | null;
-  recurrence_window_days: number | null;
-};
-type Bucket = "overdue" | "today" | "tomorrow" | "urgent" | "other";
-
-// Початок періоду («з 1 по 10» — due_date є кінцем, 10-те) — без
-// recurrence_window_days період завжди рівно один день, той самий
-// фіксований due_date, що й раніше.
-function windowStartOf(task: Task): string | null {
-  if (!task.due_date) return null;
-  if (!task.recurrence_window_days) return task.due_date;
-  return addDays(task.due_date, -task.recurrence_window_days);
-}
-
-function bucketOf(task: Task, today: string, tomorrow: string): Bucket {
-  const windowStart = windowStartOf(task);
-  if (windowStart && task.due_date) {
-    if (task.due_date < today) return "overdue"; // весь період уже минув
-    if (windowStart <= today) return "today"; // сьогодні всередині періоду
-    if (windowStart <= tomorrow) return "tomorrow"; // період починається завтра (чи раніше, але не сьогодні)
-  }
-  if (task.status === "urgent") return "urgent";
-  return "other";
-}
-
-function formatTaskLine(task: Task): string {
-  const marker = task.status === "urgent" ? "🔴 " : "";
-  const windowStart = windowStartOf(task);
-  let due = "";
-  if (task.due_date && windowStart && windowStart !== task.due_date) {
-    due = ` (${formatDueDate(windowStart)}–${formatDueDate(task.due_date)})`;
-  } else if (task.due_date) {
-    due = ` (дедлайн ${formatDueDate(task.due_date)})`;
-  }
-  return `• ${marker}${task.title}${due}`;
-}
-
-const BUCKET_TITLES: Record<Bucket, string> = {
-  overdue: "‼️ Прострочені",
-  today: "⏰ Дедлайн сьогодні",
-  tomorrow: "📅 Дедлайн завтра",
-  urgent: "🔴 Термінові (без дедлайну поруч)",
-  other: "🗒️ Інші задачі",
-};
-// Усі п'ять блоків показуються завжди, навіть порожні (за проханням
-// користувача — щоб одразу було видно "прострочених нема", а не
-// просто мовчазну відсутність секції).
-const BUCKET_EMPTY_TEXT: Record<Bucket, string> = {
-  overdue: "Прострочених нема 👍",
-  today: "На сьогодні нічого нема 👍",
-  tomorrow: "На завтра нічого нема 🙌",
-  urgent: "Термінових нема 🎉",
-  other: "Порожньо ✨",
-};
-const BUCKET_ORDER: Bucket[] = ["overdue", "today", "tomorrow", "urgent", "other"];
-
-function buildMessage(tasks: Array<Task & { __bucket: Bucket }>): string {
-  const grouped: Record<Bucket, Task[]> = { overdue: [], today: [], tomorrow: [], urgent: [], other: [] };
-  for (const task of tasks) grouped[task.__bucket].push(task);
-  // Найстаріші прострочені — першими, щоб одразу впадали в очі.
-  grouped.overdue.sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""));
-
-  const sections = BUCKET_ORDER.map((bucket) => {
-    const body = grouped[bucket].length > 0 ? grouped[bucket].map(formatTaskLine).join("\n") : BUCKET_EMPTY_TEXT[bucket];
-    return `${BUCKET_TITLES[bucket]}:\n${body}`;
-  });
-
-  return (
-    `🔔 Доброго ранку! Ваші задачі:\n\n${sections.join("\n\n")}\n\n` +
-    `Натисніть сюди, щоб відкрити планувальник: ${APP_URL}`
-  );
-}
-
 Deno.serve(async (req) => {
   // Викликає лише pg_cron (див. міграцію) — секрет у заголовку не
   // дає будь-кому зі знанням URL функції розсилати нагадування на
@@ -164,9 +60,6 @@ Deno.serve(async (req) => {
       return new Response("forbidden", { status: 403 });
     }
   }
-
-  const today = todayInKyiv();
-  const tomorrow = addDays(today, 1);
 
   const { data: tasks, error } = await supabase
     .from("tasks")
@@ -181,11 +74,10 @@ Deno.serve(async (req) => {
     return new Response("error", { status: 500 });
   }
 
-  const byUser = new Map<string, Array<Task & { __bucket: Bucket }>>();
-  for (const task of (tasks ?? []) as Task[]) {
-    const bucket = bucketOf(task, today, tomorrow);
+  const byUser = new Map<string, DigestTask[]>();
+  for (const task of (tasks ?? []) as DigestTask[]) {
     const list = byUser.get(task.user_id) ?? [];
-    list.push({ ...task, __bucket: bucket });
+    list.push(task);
     byUser.set(task.user_id, list);
   }
 
@@ -209,7 +101,8 @@ Deno.serve(async (req) => {
     const userTasks = byUser.get(link.user_id);
     if (!userTasks || userTasks.length === 0) continue;
 
-    await sendMessage(link.telegram_chat_id as number, buildMessage(userTasks));
+    const message = buildDigestMessage(userTasks, "🔔 Доброго ранку! Ваші задачі:", APP_URL);
+    await sendMessage(link.telegram_chat_id as number, message);
     sent += 1;
   }
 
