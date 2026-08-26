@@ -626,16 +626,16 @@ curl -X POST "https://api.telegram.org/bot<токен_від_BotFather>/setMyCom
   -d '{"commands":[
     {"command":"start","description":"Прив'\''язати акаунт до бота"},
     {"command":"tasks","description":"Список задач зараз"},
-    {"command":"report","description":"Звіт за минулий тиждень"},
     {"command":"report_today","description":"Звіт за сьогодні"},
     {"command":"report_week","description":"Звіт за поточний тиждень"},
     {"command":"report_lastweek","description":"Звіт за минулий тиждень"},
     {"command":"report_month","description":"Звіт за поточний місяць"},
     {"command":"report_lastmonth","description":"Звіт за минулий місяць"},
-    {"command":"report_all","description":"Звіт за весь час"},
     {"command":"report_range","description":"Звіт за свій діапазон дат"}
   ]}'
 ```
+
+Той самий порядок, що й пресети на сторінці «Історія» (`js/pages/history.js`). Голий `/report` (без аргументу — минулий тиждень, той самий результат, що й `/report_lastweek`) і `/report весь` (без обмежень — того пункту вже нема й на «Історії», замінено на «Діапазон дат»/`/report_range`) навмисно прибрано зі СПИСКУ КОМАНД (дублювали `report_lastweek` в меню чи показували результат, якого користувач на «Історії» більше не бачить) — обидва лишаються робочими, якщо набрати текстом вручну, просто не займають місце в меню «/».
 
 Змінити список — той самий виклик з новим масивом `commands` (він
 щоразу перезаписує весь список, не додає). **Список команд у меню
