@@ -15,6 +15,7 @@ const PRESETS = [
   { key: "week", label: "Поточний тиждень" },
   { key: "last-week", label: "Минулий тиждень" },
   { key: "month", label: "Поточний місяць" },
+  { key: "last-month", label: "Минулий місяць" },
   { key: "range", label: "Діапазон дат" },
 ];
 
@@ -64,6 +65,14 @@ function rangeOfPreset(preset) {
   if (preset === "month") {
     const from = new Date(now.getFullYear(), now.getMonth(), 1);
     const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    return { from, to };
+  }
+  // new Date(year, -1, ...) сама коректно переносить на грудень
+  // попереднього року — той самий трюк, що вже є в "month" вище
+  // (day: 0 наступного місяця = останній день поточного).
+  if (preset === "last-month") {
+    const from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
     return { from, to };
   }
   return { empty: true };

@@ -31,7 +31,10 @@
 //                          "тиждень" — поточний, "минулий" —
 //                          попередній тиждень (це й дефолт без
 //                          аргументу — найчастіший запит), "місяць"
-//                          — поточний, "весь" — без обмежень, довільні
+//                          — поточний, "минулий місяць" — попередній
+//                          (два слова, той самий args[0] === "минулий",
+//                          що й тиждень — розрізняє другий аргумент),
+//                          "весь" — без обмежень, довільні
 //                          "ДД-ММ-РРРР ДД-ММ-РРРР" (діапазон), чи
 //                          рівно одна "ДД-ММ-РРРР" (усе ДО цієї дати,
 //                          без нижньої межі — той самий принцип, що
@@ -39,7 +42,8 @@
 //                          Плюс готові команди для меню бота (тицяєш,
 //                          не набираєш текст) — /report_today,
 //                          /report_week, /report_lastweek,
-//                          /report_month, /report_all
+//                          /report_month, /report_lastmonth,
+//                          /report_all
 //                          (COMMAND_TO_ARGS нижче — той самий
 //                          parseReportRange() на обидва шляхи, той
 //                          самий порядок, що й пресети на сторінці
@@ -264,6 +268,15 @@ function lastWeekRange(today: string): ReportRange {
   return { from, to: addDays(from, 6), label: "минулий тиждень" };
 }
 
+// Перший день поточного місяця мінус один день завжди потрапляє в
+// попередній місяць (і в попередній рік, якщо поточний — січень) —
+// monthRange() від цієї дати сама дає межі того місяця.
+function lastMonthRange(today: string): ReportRange {
+  const { from: firstOfThisMonth } = monthRange(today);
+  const { from, to } = monthRange(addDays(firstOfThisMonth, -1));
+  return { from, to, label: "минулий місяць" };
+}
+
 // Той самий набір періодів, що й пресети на сторінці «Історія»
 // (history.js) — без аргументу (чи "минулий") за замовчуванням
 // минулий тиждень, бо це найчастіший запит користувача. Викликається
@@ -288,6 +301,9 @@ function parseReportRange(args: string[]): ReportRange {
     return { from: null, to: null, label: "увесь час" };
   }
   if (args[0] === "минулий") {
+    // "минулий місяць" (два слова) — той самий args[0], що й "минулий
+    // тиждень", розрізняє лише другий аргумент.
+    if (args[1] === "місяць") return lastMonthRange(today);
     return lastWeekRange(today);
   }
   if (args[0] && args[1]) {
@@ -312,14 +328,15 @@ function parseReportRange(args: string[]): ReportRange {
 // через setMyCommands — docs/ARCHITECTURE.md) — тицяєш замість того,
 // щоб набирати "/report тиждень" руками. Кожна лише підставляє той
 // самий аргумент, що й текстова команда, — parseReportRange() один
-// на всі шляхи. /report_range — окремо (COMMAND_TO_HANDLER нижче,
-// не сюди): не підставляє готовий аргумент, а питає його в
-// користувача через force_reply.
+// на всі шляхи. /report_range — окремо (явна перевірка в
+// handleMessage нижче, не сюди): не підставляє готовий аргумент, а
+// питає його в користувача через force_reply.
 const COMMAND_TO_ARGS: Record<string, string> = {
   "/report_today": "сьогодні",
   "/report_week": "тиждень",
   "/report_lastweek": "минулий",
   "/report_month": "місяць",
+  "/report_lastmonth": "минулий місяць",
   "/report_all": "весь",
 };
 
@@ -390,7 +407,7 @@ async function handleReport(chatId: number, userId: string, argsText: string) {
     `📊 Звіт за ${range.label}:\n\n` +
       `✅ Виконано (${done.length}):\n${listOf(done)}\n\n` +
       `🚫 Скасовано (${cancelled.length}):\n${listOf(cancelled)}\n\n` +
-      `Інші періоди: /report сьогодні · /report тиждень · /report минулий · /report місяць · /report весь · /report_range (запитає дати)`
+      `Інші періоди: /report сьогодні · /report тиждень · /report минулий · /report місяць · /report минулий місяць · /report весь · /report_range (запитає дати)`
   );
 }
 
