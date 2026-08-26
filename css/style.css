@@ -31,19 +31,12 @@
   --font-body: "Golos Text", system-ui, -apple-system, sans-serif;
 
   /* макет */
-  /* Та сама ширина, що й у нав-бару (--nav-width) — інакше при
-     ширині вікна між ними обидва центруються НЕЗАЛЕЖНО один від
-     одного (кожен своїм max-width + margin: 0 auto), і хоч у них
-     однаковий horizontal padding (1.25rem), різні max-width дають
-     різні відступи від краю екрана — контент виглядає зсунутим
-     відносно навігації над ним, а не відцентрованим під нею. */
   --content-width: 1040px;
-  /* Ширший за 768px — з email + кнопкою «Вийти» посилання вже не
-     вміщуються (звідси й --content-width вище того самого розміру). */
-  --nav-width: 1040px;
   /* дошці (/board) тісно в 768px — 3 колонки статусів у ряд
      (усього 2 ряди по 3, разом видно всі 6 без спойлера) */
   --board-width: 1150px;
+  /* ширина бічної навігації (css/nav.css) на десктопі */
+  --sidebar-width: 240px;
 
   /* тінь для карток (форма, список задач) */
   --shadow-card: 0 20px 44px -22px rgba(3, 5, 18, 0.7);
@@ -65,6 +58,12 @@ body {
   font-family: var(--font-body);
   overflow-x: hidden;
   position: relative;
+  /* Бічна навігація (.nav, css/nav.css) + основний контент
+     (#page-root) — пліч-о-пліч рядком; на мобільному .nav сама
+     ховає свою бічну панель за бургер-кнопкою (position: fixed,
+     випадає з потоку), тож там повертаємось до звичайної колонки —
+     верхня смужка з бургером, під нею контент. */
+  display: flex;
 }
 
 /* м'яке радіальне світло позаду вмісту */
@@ -75,6 +74,42 @@ body::before {
   background: radial-gradient(60% 40% at 50% 0%, var(--glow), transparent 70%);
   pointer-events: none;
   z-index: 0;
+}
+
+/* Легке зоряне небо — власний, ненав'язливий узор (не фотографія:
+   самодостатній CSS без зовнішніх файлів, той самий підхід, що й у
+   .noise нижче), лише натяк на атмосферу з референсу користувача. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.55;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1.4px 1.4px at 12% 22%, rgba(238, 241, 251, 0.9), transparent),
+    radial-gradient(1px 1px at 28% 8%, rgba(238, 241, 251, 0.7), transparent),
+    radial-gradient(1.4px 1.4px at 45% 35%, rgba(238, 241, 251, 0.8), transparent),
+    radial-gradient(1px 1px at 62% 12%, rgba(238, 241, 251, 0.6), transparent),
+    radial-gradient(1.2px 1.2px at 78% 28%, rgba(238, 241, 251, 0.75), transparent),
+    radial-gradient(1px 1px at 88% 6%, rgba(238, 241, 251, 0.55), transparent),
+    radial-gradient(1.4px 1.4px at 95% 45%, rgba(238, 241, 251, 0.7), transparent),
+    radial-gradient(1px 1px at 18% 55%, rgba(238, 241, 251, 0.5), transparent),
+    radial-gradient(1.2px 1.2px at 55% 62%, rgba(238, 241, 251, 0.6), transparent),
+    radial-gradient(1px 1px at 8% 78%, rgba(238, 241, 251, 0.45), transparent),
+    radial-gradient(1.4px 1.4px at 70% 80%, rgba(238, 241, 251, 0.55), transparent),
+    radial-gradient(1px 1px at 35% 88%, rgba(238, 241, 251, 0.4), transparent);
+}
+
+/* Мобільно .nav ховає бічну панель за бургер-кнопкою (css/nav.css:
+   .nav__panel стає position: fixed, випадає з потоку) — лишається
+   лише тонка верхня смужка (.nav__mobile-bar), тож body повертається
+   до звичайної колонки: смужка зверху, контент під нею. Той самий
+   брейкпоінт, що й у css/nav.css. */
+@media (max-width: 959px) {
+  body {
+    flex-direction: column;
+  }
 }
 
 /* тонка зерниста текстура для глибини */

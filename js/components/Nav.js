@@ -1,25 +1,26 @@
-// UI-компонент навігації: рендерить меню, підсвічує активний
-// маршрут, керує бургер-меню на мобільних і монтує меню акаунта
-// (AccountMenu.js — фото, ім'я, «Інтеграції», «Вийти»). Список
-// маршрутів бере з router.js; сама рішень про автентифікацію не
-// приймає (PROJECT_RULES, п.6) — це вже робить AccountMenu.js/
+// UI-компонент навігації: рендерить бічну панель (ліворуч, на весь
+// зріст), підсвічує активний маршрут, на мобільному ховається за
+// бургер-кнопкою в тонкій верхній смужці (.nav__mobile-bar — окремий
+// елемент, не частина панелі, лишається на місці, поки сама панель
+// виїжджає/ховається), монтує меню акаунта (AccountMenu.js — фото,
+// ім'я, «Джерела»/«Кошик»/«Інтеграції», «Вийти») внизу панелі.
+// Список маршрутів бере з router.js; сама рішень про автентифікацію
+// не приймає (PROJECT_RULES, п.6) — це вже робить AccountMenu.js/
 // authStore.js.
 //
-// Пошук — окрема кнопка-лупа праворуч, з розділювачем перед нею,
-// одразу перед іконкою акаунта. На десктопі жодних auto-margin у
-// барі нема — все компактно зліва направо (бренд, розділювач,
-// посилання, розділювач, лупа, акаунт), без розтягнутих проміжків
-// усередині. На мобільному .nav__panel випадає з потоку
-// (position: fixed), тож .nav__search там отримує власний
-// margin-left: auto, інакше лупа лишалась би зліва біля бренду замість
-// правого краю поруч з акаунтом; сам розділювач перед лупою на
-// мобільному ховається (сенсу нема, коли посилання все одно сховані
-// в бургер-меню).
+// Розкладка: body { display: flex } (css/style.css) — .nav звичайний
+// флекс-елемент зліва (sticky, на всю висоту), #page-root займає
+// решту ширини. На мобільному .nav__panel випадає з потоку
+// (position: fixed, слайд-панель) — там і живе .nav__account-slot
+// (внизу панелі) та .nav__search (над ним).
 //
-// Клік по лупі розкриває поле; під час набору (з дебаунсом) —
-// випадний список до 6 збігів (searchTasks() з taskStore.js), клік
-// по одному одразу відкриває задачу; Enter/кнопка — повний список на
-// /search (js/pages/search.js), запит туди передається через
+// Пошук — рядок-кнопка з лупою всередині панелі, під розділювачем
+// над акаунтом; клік розкриває панель з полем праворуч від бічної
+// навігації (не знизу — там мало б місця). Під час набору (з
+// дебаунсом) — випадний список до SUGGESTION_LIMIT збігів
+// (searchTasks() з taskStore.js), клік по одному одразу відкриває
+// задачу; Enter/сабміт форми — повний список на /search
+// (js/pages/search.js), запит туди передається через
 // setPendingSearchQuery() — маршрутизація query-рядків не підтримує.
 
 import { getRoutes, navigate } from "../router.js";
@@ -30,6 +31,19 @@ import { searchTasks } from "../store/taskStore.js";
 const AUTH_PATH = "/auth";
 const SUGGESTION_LIMIT = 6;
 const DEBOUNCE_MS = 280;
+
+// Мінімальні лінійні іконки (20×20, stroke: currentColor) — той самий
+// стиль, що й TRASH_ICON_SVG у TaskCard.js: жодної зовнішньої
+// бібліотеки іконок, усе саморобне й узгоджене з рештою застосунку.
+const ROUTE_ICONS = {
+  "/inbox": `<path d="M3 11l1.6-5.4A1 1 0 0 1 5.55 5h8.9a1 1 0 0 1 .95.6L17 11M3 11v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4M3 11h3.8l1 1.8h4.4l1-1.8H17" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round" fill="none"/>`,
+  "/list/next": `<path d="M4 5.5h2M4 10h2M4 14.5h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8.5 5.5H16M8.5 10H16M8.5 14.5H16" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>`,
+  "/board": `<rect x="3" y="4" width="4" height="12" rx="1.2" stroke="currentColor" stroke-width="1.4" fill="none"/><rect x="8" y="4" width="4" height="8" rx="1.2" stroke="currentColor" stroke-width="1.4" fill="none"/><rect x="13" y="4" width="4" height="10" rx="1.2" stroke="currentColor" stroke-width="1.4" fill="none"/>`,
+  "/list/read_watch": `<path d="M10 6.2c-1.3-1-3.1-1.4-5-1.2v9.6c1.9-0.2 3.7 0.2 5 1.2 1.3-1 3.1-1.4 5-1.2V5c-1.9-0.2-3.7 0.2-5 1.2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/><path d="M10 6.2v9.6" stroke="currentColor" stroke-width="1.3"/>`,
+  "/list/someday": `<path d="M13.8 11.6A6 6 0 116.4 4.2a6 6 0 007.4 7.4z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>`,
+  "/history": `<circle cx="10" cy="10" r="6.8" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M10 6.5V10l2.6 1.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`,
+  "/feed": `<circle cx="4.5" cy="15.5" r="1.5" fill="currentColor"/><path d="M4.5 10.2a5.3 5.3 0 015.3 5.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/><path d="M4.5 5.5A10 10 0 0114.5 15.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/>`,
+};
 
 const SEARCH_ICON_SVG = `
   <svg viewBox="0 0 20 20" aria-hidden="true" class="nav__search-icon">
@@ -56,30 +70,44 @@ export function mountNav(root) {
   const routes = getRoutes();
 
   root.innerHTML = `
-    <div class="nav__bar">
+    <div class="nav__mobile-bar">
       <button type="button" class="nav__burger" aria-label="Відкрити меню" aria-expanded="false" aria-controls="nav-menu">
         <span aria-hidden="true">☰</span>
       </button>
-      <a href="/inbox" data-link class="nav__brand">Mini GTD</a>
+      <a href="/inbox" data-link class="nav__mobile-brand">Mini GTD</a>
+    </div>
+
+    <div class="nav__panel" id="nav-menu">
+      <a href="/inbox" data-link class="nav__brand">
+        <span class="nav__brand-mark" aria-hidden="true">✕</span>
+        Mini GTD
+      </a>
+
+      <ul class="nav__links">
+        ${routes
+          .map(
+            (route) => `
+          <li>
+            <a href="${route.path}" data-link data-path="${route.path}" class="nav__link">
+              <span class="nav__link-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20">${ROUTE_ICONS[route.path] ?? ""}</svg>
+              </span>
+              <span class="nav__link-label">${route.title}</span>
+            </a>
+          </li>
+        `
+          )
+          .join("")}
+      </ul>
+
+      <div class="nav__spacer"></div>
+
       <span class="nav__divider" aria-hidden="true"></span>
-      <div class="nav__panel" id="nav-menu">
-        <ul class="nav__links">
-          ${routes
-            .map(
-              (route) => `
-            <li>
-              <a href="${route.path}" data-link data-path="${route.path}" class="nav__link">${route.title}</a>
-            </li>
-            ${route.path === "/inbox" ? `<li class="nav__divider" aria-hidden="true"></li>` : ""}
-          `
-            )
-            .join("")}
-        </ul>
-      </div>
-      <span class="nav__divider nav__divider--search" aria-hidden="true"></span>
+
       <div class="nav__search">
-        <button type="button" class="nav__search-toggle" aria-label="Пошук" aria-expanded="false" aria-controls="nav-search-panel">
+        <button type="button" class="nav__search-toggle" aria-expanded="false" aria-controls="nav-search-panel">
           ${SEARCH_ICON_SVG}
+          <span class="nav__search-toggle-label">Пошук</span>
         </button>
         <div class="nav__search-panel" id="nav-search-panel" hidden>
           <form class="nav__search-form" role="search">
@@ -94,6 +122,7 @@ export function mountNav(root) {
           <ul class="nav__search-suggestions" hidden></ul>
         </div>
       </div>
+
       <div class="nav__account-slot"></div>
     </div>
     <div class="nav__overlay"></div>
@@ -116,11 +145,11 @@ export function mountNav(root) {
   wireSearch(root);
 }
 
-// Кнопка-лупа: клік розкриває панель з полем; під час набору (з
-// дебаунсом — не смикати базу на кожну літеру) — випадний список до
-// SUGGESTION_LIMIT збігів, клік по одному одразу відкриває задачу.
-// Enter/кнопка форми (тут форми немає кнопки — лише Enter) веде на
-// повний список /search.
+// Кнопка-лупа: клік розкриває панель з полем праворуч від бічної
+// навігації; під час набору (з дебаунсом — не смикати базу на кожну
+// літеру) — випадний список до SUGGESTION_LIMIT збігів, клік по
+// одному одразу відкриває задачу. Enter/сабміт форми — повний
+// список на /search.
 function wireSearch(root) {
   const toggle = root.querySelector(".nav__search-toggle");
   const panel = root.querySelector(".nav__search-panel");

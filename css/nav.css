@@ -1,29 +1,39 @@
-/* Nav — компонент навігації (js/components/Nav.js) і вкладене меню
+/* Nav — бічна панель ліворуч (js/components/Nav.js) і вкладене меню
    акаунта (AccountMenu.js — сам компонент, тут спільні стилі, той
    самий принцип, що й task-card.css для TaskCard.js+підзадач).
-   Горизонтальне меню на широкому екрані, бургер + висувна панель
-   на мобільному. Кольори — лише з токенів у css/style.css. */
+   На весь зріст зліва на десктопі; на мобільному ховається за
+   бургер-кнопкою в тонкій верхній смужці (.nav__mobile-bar — окремий
+   елемент, лишається на місці, поки сама панель (.nav__panel)
+   виїжджає/ховається). Кольори — лише з токенів у css/style.css. */
 
 .nav {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 20;
-  background: var(--bg-soft);
-  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
 }
 
-/* На /auth навігацію взагалі не показуємо. */
+/* На /auth навігацію взагалі не показуємо — display: none повністю
+   виключає .nav із флекс-рядка body (css/style.css), #page-root сам
+   займає всю ширину. */
 .nav--hidden {
   display: none;
 }
 
-.nav__bar {
-  max-width: var(--nav-width);
-  margin: 0 auto;
-  padding: 0.85rem 1.25rem;
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
+/* --- Мобільна верхня смужка (бургер + бренд) --- */
+/* На десктопі не показується — сама бічна панель (.nav__panel)
+   завжди на видноті, самого бургера не треба. */
+.nav__mobile-bar {
+  display: none;
+}
+
+.nav__mobile-brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
 .nav__burger {
@@ -46,63 +56,132 @@
   background: var(--bg-raised);
 }
 
+/* --- Бічна панель --- */
+
+.nav__panel {
+  position: sticky;
+  top: 0;
+  width: var(--sidebar-width);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 1.5rem 1rem;
+  background: var(--bg-soft);
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+
 .nav__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0 0.35rem 1.5rem;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 1.05rem;
   color: var(--ink);
   text-decoration: none;
   letter-spacing: -0.01em;
   white-space: nowrap;
 }
 
-/* Панель з посиланнями — на десктопі просто йде в потоці одразу
-   після бренду (без auto-margin: він штовхав би її аж до правого
-   краю .nav-width, лишаючи один великий проміжок одразу після
-   "Mini GTD" — саме це користувач і побачив на скріні), на
-   мобільному ж стає висувною бічною панеллю (див. медіа-запит
-   нижче). */
-.nav__panel {
-  display: flex;
+.nav__brand-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 0.6rem;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: var(--accent-gradient);
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
-/* Тонка вертикальна риска-розділювач — той самий прийом, що й
-   border-left у .nav__account-slot нижче, лише як окремий елемент
-   (перед .nav__account-slot border на сусідньому елементі досить,
-   бо він завжди по правому краю; тут потрібно два конкретні місця
-   в середині рядка — після бренду й після «Вхідні» — тож зручніше
-   окремим <span>/<li>, не border). */
+.nav__links {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0;
+}
+
+.nav__link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.65rem;
+  border-radius: 10px;
+  color: var(--ink-dim);
+  text-decoration: none;
+  font-size: 0.87rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.nav__link:hover {
+  color: var(--ink);
+  background: var(--bg-raised);
+}
+
+.nav__link.is-active {
+  color: var(--ink);
+  font-weight: 700;
+  background: var(--accent-soft);
+}
+
+.nav__link-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: inherit;
+}
+
+.nav__link-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.nav__link-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Штовхає пошук+акаунт у самий низ панелі — вона на всю висоту
+   екрана (height: 100vh вище), тож порожнього місця вистачає. */
+.nav__spacer {
+  flex: 1 1 auto;
+}
+
 .nav__divider {
   flex: 0 0 auto;
-  width: 1px;
-  height: 20px;
+  height: 1px;
+  margin: 0.5rem 0.65rem;
   background: var(--line);
 }
 
-/* Лупа — окремим блоком праворуч, перед .nav__account-slot: на
-   десктопі йде прямо перед нею (та вже сама завжди по правому краю
-   через власний margin-left: auto — .nav__search тут нічого
-   додаткового не потребує). На мобільному .nav__panel випадає з
-   потоку (position: fixed, див. медіа-запит нижче), тож без
-   власного margin-left: auto лупа лишалась би зліва біля бренду —
-   там окремо задається. */
+/* --- Пошук --- */
+
 .nav__search {
   position: relative;
-  flex: 0 0 auto;
 }
 
 .nav__search-toggle {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.6rem 0.65rem;
+  border: none;
+  border-radius: 10px;
   background: transparent;
   color: var(--ink-dim);
+  font-family: var(--font-body);
+  font-size: 0.87rem;
+  font-weight: 500;
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
@@ -114,27 +193,34 @@
 }
 
 .nav__search-icon {
+  flex: 0 0 auto;
   width: 18px;
   height: 18px;
 }
 
-/* Випадна панель під лупою — картка, що зʼявляється по кліку.
-   .nav__search-panel[hidden] — окремий override: сама панель має
+.nav__search-toggle-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Випадна панель — картка, що зʼявляється по кліку, ПРАВОРУЧ від
+   бічної навігації (не знизу — там мало б місця для панелі так
+   близько до низу екрана). [hidden] override — сама панель має
    authored display (flex), інакше [hidden] мовчки програвав би
    йому (той самий баг, що вже був із .board--hidden й іншими). */
 .nav__search-panel {
   position: absolute;
-  top: calc(100% + 0.6rem);
-  right: 0;
+  left: calc(100% + 0.75rem);
+  bottom: 0;
   z-index: 35;
-  width: min(260px, calc(100vw - 2.5rem));
+  width: min(280px, calc(100vw - var(--sidebar-width) - 2.5rem));
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
   padding: 0.6rem;
   background: var(--bg-soft);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 16px;
   box-shadow: var(--shadow-card);
 }
 
@@ -194,58 +280,26 @@
   color: var(--accent);
 }
 
-.nav__links {
-  list-style: none;
-  display: flex;
-  align-items: center;
-  gap: 0.2rem;
-  margin: 0;
-  padding: 0;
-}
+/* --- Слот меню акаунта --- */
 
-.nav__link {
-  display: inline-block;
-  padding: 0.45rem 0.75rem;
-  border-radius: 8px;
-  color: var(--ink-dim);
-  text-decoration: none;
-  font-size: 0.86rem;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.nav__link:hover {
-  color: var(--ink);
-  background: var(--bg-raised);
-}
-
-.nav__link.is-active {
-  color: var(--ink);
-  font-weight: 700;
-  background: var(--accent-soft);
-}
-
-/* Слот меню акаунта (AccountMenu.js) — на десктопі просто йде в
-   потоці одразу після лупи (жодного auto-margin — усе компактно
-   зліва направо, без розтягнутих проміжків усередині бару; якщо
-   вміст не заповнює всю ширину .nav-width, вільне місце лишається
-   в кінці бару, а не серед пунктів меню). На мобільному .nav__panel
-   випадає з потоку (position: fixed) — там праворуч штовхає
-   .nav__search (власний margin-left: auto лише в медіа-запиті
-   нижче), цей слот просто йде одразу за ним. */
 .nav__account-slot {
-  flex: 0 0 auto;
-  padding-left: 0.75rem;
-  border-left: 1px solid var(--line);
+  margin-top: 0.35rem;
 }
 
-.nav__overlay {
-  display: none;
-}
-
-/* Мобільний вигляд: бургер + висувна панель зліва */
+/* Мобільний вигляд: тонка верхня смужка + висувна бічна панель */
 @media (max-width: 959px) {
+  .nav__mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: 0.85rem 1.25rem;
+    background: var(--bg-soft);
+    border-bottom: 1px solid var(--line);
+  }
+
   .nav__burger {
     display: inline-flex;
   }
@@ -257,11 +311,7 @@
     z-index: 30;
     height: 100vh;
     width: min(78vw, 300px);
-    margin: 0;
-    padding: 4.5rem 1.1rem 1.5rem;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
+    padding: 1.5rem 1.1rem;
     background: var(--bg-soft);
     border-right: 1px solid var(--line);
     transform: translateX(-100%);
@@ -272,39 +322,15 @@
     transform: translateX(0);
   }
 
-  .nav__links {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.15rem;
-  }
-
-  /* Вертикальна риска всередині панелі (після «Вхідні») стає
-     горизонтальною смугою у висувній панелі (тепер вона в колонку) —
-     той самий розділювач, інша орієнтація під новий контекст. Той,
-     що біля бренду (.nav__bar > .nav__divider, поза .nav__panel),
-     лишається в згорнутому барі як був — це правило його не чіпає. */
-  .nav__panel .nav__divider {
-    width: 100%;
-    height: 1px;
-    margin: 0.5rem 0;
-  }
-
-  /* .nav__panel випадає з потоку (position: fixed вище) — лупа без
-     власного авто-відступу лишалась би одразу біля бренду замість
-     правого краю поруч з іконкою акаунта. */
-  .nav__search {
-    margin-left: auto;
-  }
-
-  /* Розділювач перед лупою мав сенс поруч із посиланнями — на
-     мобільному вони сховані в бургер-меню, тож тут він просто зайва
-     риска біля бренду. */
-  .nav__divider--search {
-    display: none;
-  }
-
-  .nav__link {
-    padding: 0.65rem 0.8rem;
+  /* Випадна панель пошуку праворуч від бічної навігації мала сенс на
+     десктопі — тут навігація сама виїжджає зверху на весь екран,
+     тож панель ховаємо вниз, під кнопкою, на всю доступну ширину. */
+  .nav__search-panel {
+    left: 0;
+    right: 0;
+    bottom: auto;
+    top: calc(100% + 0.4rem);
+    width: auto;
   }
 
   .nav__overlay {
@@ -324,6 +350,12 @@
   }
 }
 
+@media (min-width: 960px) {
+  .nav__overlay {
+    display: none;
+  }
+}
+
 /* --- Меню акаунта (AccountMenu.js) --- */
 
 .account-menu {
@@ -332,16 +364,31 @@
 
 .account-menu__trigger {
   display: flex;
-  padding: 0;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.5rem;
   background: transparent;
   border: none;
-  border-radius: 999px;
+  border-radius: 10px;
+  color: var(--ink);
   cursor: pointer;
-  line-height: 0;
+  text-align: left;
+  transition: background-color 0.15s ease;
 }
 
 .account-menu__trigger:hover {
-  opacity: 0.85;
+  background: var(--bg-raised);
+}
+
+.account-menu__trigger-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .account-menu__avatar {
@@ -371,10 +418,13 @@
   font-size: 1.1rem;
 }
 
+/* Панель відкривається ВГОРУ й вирівняна по лівому краю — тригер
+   тепер унизу бічної панелі, а не вгорі бару, тож "вниз-праворуч",
+   як було раніше, вела б за межі екрана. */
 .account-menu__panel {
   position: absolute;
-  top: calc(100% + 0.6rem);
-  right: 0;
+  bottom: calc(100% + 0.6rem);
+  left: 0;
   z-index: 35;
   width: 240px;
   display: flex;

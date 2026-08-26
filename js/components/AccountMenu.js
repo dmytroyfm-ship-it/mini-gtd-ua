@@ -167,7 +167,13 @@ export function renderAccountMenu() {
       </div>
     `;
 
-    trigger.innerHTML = avatarHtml(session, "");
+    // Ім'я поруч з аватаром — тригер тепер рядок унизу бічної
+    // панелі (не самотня іконка вгорі бару), самого фото замало,
+    // щоб виглядало як "твій акаунт", а не ще один пункт меню.
+    trigger.innerHTML = `
+      ${avatarHtml(session, "")}
+      <span class="account-menu__trigger-name">${escapeHtml(session.name || session.email)}</span>
+    `;
 
     header
       .querySelector(".account-menu__name")
