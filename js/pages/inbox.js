@@ -11,6 +11,7 @@ import {
   updateTask,
   setTaskCompleted,
   completeTask,
+  skipTask,
   moveTaskToTrash,
   setTaskStatus,
   setTaskList,
@@ -49,6 +50,7 @@ export async function renderInbox(root) {
         onDueDateChange: handleDueDateChange,
         onRecurrenceChange: handleRecurrenceChange,
         onRecurrenceWindowChange: handleRecurrenceWindowChange,
+        onSkipTask: handleSkipTask,
         onAddTag: handleAddTag,
       });
     } catch (err) {
@@ -113,6 +115,11 @@ export async function renderInbox(root) {
 
   async function handleRecurrenceWindowChange(task, windowDays) {
     await setTaskRecurrenceWindow(task.id, windowDays);
+    await refreshList();
+  }
+
+  async function handleSkipTask(task) {
+    await skipTask(task);
     await refreshList();
   }
 

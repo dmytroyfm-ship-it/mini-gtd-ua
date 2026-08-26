@@ -10,6 +10,7 @@ import {
   updateTask,
   setTaskCompleted,
   completeTask,
+  skipTask,
   moveTaskToTrash,
   setTaskStatus,
   setTaskList,
@@ -70,6 +71,7 @@ export async function renderTaskDetail(root, params) {
       onDueDateChange: handleDueDateChange,
       onRecurrenceChange: handleRecurrenceChange,
       onRecurrenceWindowChange: handleRecurrenceWindowChange,
+      onSkipTask: handleSkipTask,
       onAddTag: handleAddTag,
       detail: true,
       detailedSubtasks: true,
@@ -129,6 +131,11 @@ export async function renderTaskDetail(root, params) {
 
   async function handleRecurrenceWindowChange(t, windowDays) {
     await setTaskRecurrenceWindow(t.id, windowDays);
+    await loadTask();
+  }
+
+  async function handleSkipTask(t) {
+    await skipTask(t);
     await loadTask();
   }
 

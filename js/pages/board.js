@@ -20,6 +20,7 @@ import {
   setTaskStatus,
   setTaskCompleted,
   completeTask,
+  skipTask,
   moveTaskToTrash,
   setTaskList,
   setTaskDueDate,
@@ -79,6 +80,7 @@ export async function renderBoard(root) {
     onDueDateChange: handleDueDateChange,
     onRecurrenceChange: handleRecurrenceChange,
     onRecurrenceWindowChange: handleRecurrenceWindowChange,
+    onSkipTask: handleSkipTask,
     onAddTag: handleAddTag,
     draggable: true,
   };
@@ -216,6 +218,11 @@ export async function renderBoard(root) {
 
   async function handleRecurrenceWindowChange(task, windowDays) {
     await setTaskRecurrenceWindow(task.id, windowDays);
+    await refreshBoard();
+  }
+
+  async function handleSkipTask(task) {
+    await skipTask(task);
     await refreshBoard();
   }
 

@@ -15,6 +15,7 @@ import {
   updateTask,
   setTaskCompleted,
   completeTask,
+  skipTask,
   moveTaskToTrash,
   setTaskStatus,
   setTaskList,
@@ -50,6 +51,7 @@ export function createListPage({ list, title, emptyText }) {
             onDueDateChange: handleDueDateChange,
             onRecurrenceChange: handleRecurrenceChange,
             onRecurrenceWindowChange: handleRecurrenceWindowChange,
+            onSkipTask: handleSkipTask,
             onAddTag: handleAddTag,
           },
           emptyText
@@ -104,6 +106,11 @@ export function createListPage({ list, title, emptyText }) {
 
     async function handleRecurrenceWindowChange(task, windowDays) {
       await setTaskRecurrenceWindow(task.id, windowDays);
+      await refreshList();
+    }
+
+    async function handleSkipTask(task) {
+      await skipTask(task);
       await refreshList();
     }
 

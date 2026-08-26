@@ -227,6 +227,21 @@ export async function completeTask(task) {
   return data;
 }
 
+// Пропустити цикл повторюваної задачі — коли самої події цього разу
+// не було (наприклад, нараду скасували), і позначати виконаною
+// нічого. На відміну від completeTask(): не чіпає completed, не
+// створює нового рядка історії — просто переносить due_date цієї ж
+// задачі на наступний цикл (та сама nextDueDate(), anchor і період
+// лишаються, як були).
+export async function skipTask(task) {
+  if (!task.recurrence) throw new Error("Пропустити можна лише повторювану задачу.");
+
+  const nextDue = nextDueDate(task.due_date, task.recurrence, task.recurrence_anchor_day);
+  const { error } = await supabase.from("tasks").update({ due_date: nextDue }).eq("id", task.id);
+
+  if (error) throw error;
+}
+
 // Статус — той самий dropdown у картці задачі й ті самі колонки
 // дошки /board (drag-and-drop туди теж викликає цю функцію) —
 // єдине поле, єдине джерело правди для обох місць.

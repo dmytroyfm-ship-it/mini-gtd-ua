@@ -60,6 +60,7 @@ export function renderTaskCard(task, handlers = {}) {
     onDueDateChange,
     onRecurrenceChange,
     onRecurrenceWindowChange,
+    onSkipTask,
     onAddTag,
     draggable,
     detail,
@@ -166,6 +167,12 @@ export function renderTaskCard(task, handlers = {}) {
         <option value="weekly">Щотижня</option>
         <option value="monthly">Щомісяця</option>
       </select>
+      <button
+        type="button"
+        class="task-card__skip-recurrence"
+        title="Цього разу нічого не сталось (наприклад, подію скасували) — перенести на наступний цикл, не позначаючи виконаною"
+        ${task.recurrence ? "" : "hidden"}
+      >⏭ Пропустити</button>
     </div>
 
     <div class="task-card__subtasks">
@@ -193,6 +200,7 @@ export function renderTaskCard(task, handlers = {}) {
   wireDueDate(card, task, onDueDateChange);
   wireRecurrence(card, task, onRecurrenceChange);
   wireRecurrenceWindow(card, task, onRecurrenceWindowChange);
+  wireSkipTask(card, task, onSkipTask);
   wireAddTag(card, task, onAddTag);
   wireAiBreakdown(card, task, detailedSubtasks);
   loadSubtasks(card, task, detailedSubtasks);
@@ -484,6 +492,32 @@ function wireRecurrenceWindow(card, task, onRecurrenceWindowChange) {
       window.alert("Не вдалося зберегти період. Спробуйте ще раз.");
     } finally {
       startInput.disabled = false;
+    }
+  });
+}
+
+// «⏭ Пропустити» — видима лише для повторюваних задач (renderTaskCard
+// ховає її інакше). На відміну від чекбокса «виконано» не позначає
+// completed і не створює нового рядка історії — просто переносить
+// due_date цієї ж задачі на наступний цикл (taskStore.skipTask()).
+// Підтвердження через window.confirm() — дію неможливо скасувати
+// (попередній дедлайн ніде не зберігається), той самий принцип, що
+// й у TrashItem.js/IntegrationsCard.js для інших дій без відкату.
+function wireSkipTask(card, task, onSkipTask) {
+  const button = card.querySelector(".task-card__skip-recurrence");
+
+  button.addEventListener("click", async () => {
+    if (!onSkipTask) return;
+    if (!window.confirm("Пропустити цей цикл і перенести дедлайн на наступний, не позначаючи задачу виконаною?")) return;
+
+    button.disabled = true;
+
+    try {
+      await onSkipTask(task);
+    } catch (err) {
+      console.error(err);
+      button.disabled = false;
+      window.alert("Не вдалося пропустити цикл. Спробуйте ще раз.");
     }
   });
 }
