@@ -862,10 +862,14 @@ Twitter/RSS); «Стрічка» (`/feed`) — сюди стікаються п�
 
 ```
 GTD додаток/
-├── index.html               — єдина точка входу (shell застосунку)
+├── index.html               — єдина точка входу (shell застосунку); крихітний
+│                             inline-скрипт у <head> застосовує тему до першого
+│                             рендеру (themeStore.js)
 ├── css/
-│   ├── style.css             — дизайн-токени (:root) + глобальні стилі
-│   ├── nav.css                — стилі компонента навігації
+│   ├── style.css             — дизайн-токени (:root + :root[data-theme="light"])
+│   │                             + глобальні стилі (body, фон, зоряне небо, .user-bg)
+│   ├── nav.css                — бічна панель навігації (десктоп) / висувна (мобільний)
+│   │                             + меню акаунта (AccountMenu.js)
 │   ├── page.css                 — спільні стилі контенту сторінок
 │   ├── auth.css                  — стилі сторінки логіну (картка, кнопка Google)
 │   ├── task-form.css              — стилі картки форми додавання задачі
@@ -875,11 +879,13 @@ GTD додаток/
 │   ├── board.css                     — дошка Kanban (.page--wide, колонки, drag-over)
 │   ├── task-detail.css                — /task/:id: «Назад», блоки «Матеріали»/«Коментарі»
 │   ├── integrations.css                — картка Telegram-інтеграції (/integrations)
-│   ├── ai-suggestion.css               — кнопка + картка «Що зробити зараз?»
 │   ├── sources.css                     — форма + список джерел (/sources)
-│   └── feed.css                        — картки постів стрічки (/feed)
+│   ├── feed.css                         — картки постів стрічки (/feed)
+│   ├── history.css                      — звіт за період + список «Історії» (/history)
+│   └── search.css                        — сторінка «Пошук» (/search)
 ├── js/
-│   ├── app.js                 — точка входу: чекає initAuth(), монтує навігацію й роутер
+│   ├── app.js                 — точка входу: initTheme() → initAuth() → монтує
+│   │                             навігацію й фон → initBackground() → роутер
 │   ├── router.js               — маршрути, доступ, History API, рендер сторінок
 │   ├── config.js                — Project URL + publishable key Supabase (не секрет)
 │   │                             + TELEGRAM_BOT_USERNAME (теж не секрет)
@@ -887,13 +893,15 @@ GTD додаток/
 │   │   └── supabaseClient.js      — єдиний клієнт Supabase (createClient)
 │   ├── store/
 │   │   ├── taskStore.js           — задачі через Supabase (getTaskById, getTasks,
-│   │   │                             getAllTasks, addTask, updateTask,
-│   │   │                             setTaskCompleted, completeTask,
-│   │   │                             setTaskStatus, setTaskList, setTaskDueDate,
-│   │   │                             setTaskRecurrence,
-│   │   │                             setTaskTags, moveTaskToTrash, getTrashedTasks,
-│   │   │                             restoreTask, deleteTaskPermanently)
-│   │   │                             + JSDoc-тип Task
+│   │   │                             getAllTasks, searchTasks, getWaitingTasks,
+│   │   │                             addTask, updateTask, setTaskCompleted,
+│   │   │                             completeTask, skipTask, isWindowActive,
+│   │   │                             setTaskStatus, changeTaskStatus, setTaskList,
+│   │   │                             setTaskDueDate, setTaskRecurrence,
+│   │   │                             setTaskRecurrenceWindow, setTaskTags,
+│   │   │                             moveTaskToTrash, getTrashedTasks, restoreTask,
+│   │   │                             deleteTaskPermanently, getArchivedTasks,
+│   │   │                             restoreFromHistory) + JSDoc-тип Task
 │   │   ├── subtaskStore.js         — підзадачі (getSubtasks, addSubtask,
 │   │   │                             setSubtaskTitle, setSubtaskCompleted,
 │   │   │                             setSubtaskDueDate, setSubtaskTags, deleteSubtask)
@@ -901,27 +909,37 @@ GTD додаток/
 │   │   │                             deleteMaterial)
 │   │   ├── commentStore.js          — коментарі (getComments, addComment,
 │   │   │                             deleteComment)
-│   │   ├── authStore.js            — сесія через Supabase Auth (getSession, signInWithGoogle, signOut)
+│   │   ├── authStore.js            — сесія через Supabase Auth (getSession,
+│   │   │                             signInWithGoogle, signOut, updateDisplayName,
+│   │   │                             uploadAvatar, uploadBackground, resetBackground)
+│   │   ├── themeStore.js           — тема світла/темна (getTheme, setTheme,
+│   │   │                             toggleTheme, initTheme) — localStorage, не БД
 │   │   ├── telegramStore.js        — прив'язка Telegram (getTelegramLink,
 │   │   │                             generateLinkCode, unlinkTelegram)
-│   │   ├── aiStore.js               — проксі до ai-assist/ (breakdownTaskWithAI,
-│   │   │                             suggestNextTaskWithAI)
+│   │   ├── aiStore.js               — проксі до ai-assist/ (breakdownTaskWithAI)
 │   │   ├── sourceStore.js           — джерела (getSources, addSource, deleteSource)
 │   │   ├── feedStore.js             — стрічка (getFeedItems, skipFeedItem,
 │   │   │                             markFeedItemAdded)
 │   │   └── storageStore.js           — uploadFile(path, file) → публічне посилання
 │   │                             (Supabase Storage, бакет user-uploads)
 │   ├── components/
-│   │   ├── Nav.js                — навігація (меню, бургер, монтує AccountMenu.js)
-│   │   ├── AccountMenu.js          — меню акаунта: аватар/ім'я/пошта,
-│   │   │                             «Інтеграції», «Вийти»
+│   │   ├── Nav.js                — бічна панель: посилання, пошук (з підказками),
+│   │   │                             монтує AccountMenu.js; мобільна верхня смужка
+│   │   │                             + висувна панель
+│   │   ├── BackgroundImage.js      — застосовує власне фонове зображення на
+│   │   │                             весь застосунок (#user-bg, index.html)
+│   │   ├── AccountMenu.js          — меню акаунта: перемикач теми, фото,
+│   │   │                             фонове зображення, «Джерела»/«Інтеграції»/
+│   │   │                             «Кошик», «Вийти»
 │   │   ├── AuthCard.js             — картка логіну (кнопка Google, помилка)
 │   │   ├── TaskForm.js            — картка форми (стан збереження, помилка)
 │   │   ├── TaskList.js             — колонка карток задач / порожній стан
 │   │   ├── TaskCard.js              — картка задачі: назва-посилання, теги,
-│   │   │                             статус/список, дедлайн, підзадачі
-│   │   │                             («пульт керування»; detail/detailedSubtasks
-│   │   │                             — більший масштаб для /task/:id)
+│   │   │                             статус/список (включно з псевдо-опцією
+│   │   │                             «Виконані» — statusSelectValue()), дедлайн,
+│   │   │                             підзадачі («пульт керування»;
+│   │   │                             detail/detailedSubtasks — більший масштаб
+│   │   │                             для /task/:id)
 │   │   ├── SubtaskList.js            — список підзадач + форма додавання
 │   │   ├── SubtaskItem.js             — один рядок підзадачі (+ міні-теги/дедлайн
 │   │   │                             у детальному режимі)
@@ -933,7 +951,6 @@ GTD додаток/
 │   │   ├── HistoryItem.js              — рядок історії (позначка виконано/скасовано/
 │   │   │                             в архіві + дата, «Повернути у Вхідні»)
 │   │   ├── IntegrationsCard.js         — картка Telegram: статус, код прив'язки, відв'язати
-│   │   ├── NextTaskSuggestion.js        — кнопка + картка «Що зробити зараз?» (AI)
 │   │   ├── SourceForm.js                — форма додавання джерела (платформа + handle)
 │   │   ├── SourceList.js                 — список джерел / порожній стан
 │   │   ├── SourceItem.js                  — рядок джерела (платформа, handle, id, видалити)
@@ -1210,28 +1227,45 @@ dropdown «Статус», тож зі змінити статус можна і
 
 Кольори та інші теми оформлення визначені як CSS-змінні
 (дизайн-токени) в одному місці — блок `:root` у
-[css/style.css](../css/style.css):
+[css/style.css](../css/style.css), і перевизначені для світлої теми в
+`:root[data-theme="light"]` там же (розділ 1, «Перемикач теми»):
 
-- `--bg`, `--bg-soft`, `--bg-raised` — фонові кольори, матові,
-  з індиговим підтоном (темна тема)
-- `--ink`, `--ink-dim` — кольори тексту (холодний білий / приглушений)
-- `--accent`, `--accent-dim`, `--accent-soft` — акцент: яскравий
-  гранатово-червоний і приглушений бордовий для м'якших станів
-  (зокрема підсвітка активного пункту меню)
+- `--bg`, `--bg-soft`, `--bg-raised` — фонові кольори (темна тема —
+  нічна індиго-синь; світла — м'який лавандово-білий)
+- `--ink`, `--ink-dim` — кольори тексту (темна тема — холодний білий/
+  приглушений синьо-сірий; світла — темний indigo-чорний/приглушений)
+- `--accent`, `--accent-dim`, `--accent-soft` — акцент: синьо-
+  фіолетовий (світліший у темній темі, трохи темніший у світлій —
+  для контрасту тексту/рамок на білому)
+- `--accent-gradient` — той самий діапазон градієнтом, для помітних
+  кнопок-пігулок (`task-form.css` тощо); **однаковий в обох темах**
+- `--accent-ink` — текст/іконка ПОВЕРХ суцільної заливки
+  `--accent`/`--accent-gradient` — завжди світлий, **теми-незалежний**
+  (на відміну від `--ink`, який теми навмисно перевертають; без
+  цього окремого токена світла тема лишала б темний текст на
+  фіолетовій кнопці — конкретний клас багу, вже був і виправлений)
 - `--line` — колір ліній/бордерів
-- `--overlay` — підкладка за мобільним меню
+- `--overlay` — темна підкладка (мобільний бекдроп бічної панелі,
+  «засвітлення» під власним фоновим зображенням) — **однакова в
+  обох темах** (скрім завжди темний, незалежно від теми сторінки)
 - `--glow` — м'яке фонове світло позаду вмісту (`body::before`)
-- `--font-display`, `--font-body` — шрифтові сімейства
-- `--content-width` — максимальна ширина контенту сторінок (768px)
-- `--nav-width` — максимальна ширина нав-бару (1040px, ширша за
-  контент — email і кнопка «Вийти» інакше не вміщуються)
+- `--font-display`, `--font-body` — шрифтові сімейства (однакові в
+  обох темах)
+- `--content-width` — максимальна ширина контенту сторінок (1040px)
+- `--board-width` — ширша версія для дошки `/board` (1150px, 6
+  колонок статусів)
+- `--sidebar-width` — ширина бічної навігації на десктопі (240px)
 - `--shadow-card` — тінь карток (форма додавання, список задач,
-  картка логіну)
+  картка логіну) — м'якша/світліша в світлій темі
 
 Усі стилі звертаються до кольору лише через `var(--...)`; нових
 кольорів «на льоту» в розмітці чи стилях компонентів не додається
-(правило №4 з PROJECT_RULES). Тема — темна за замовчуванням,
-перемикача світлої теми немає.
+(правило №4 з PROJECT_RULES). Тема — **темна за замовчуванням**
+(свідоме дизайн-рішення, лишається первинним враженням від
+застосунку), перемикається кнопкою в меню акаунта
+(`js/store/themeStore.js`, деталі — розділ 1 вище); значення — в
+`localStorage`, не в БД (має застосуватись ще до відповіді
+Supabase).
 
 Так уже зроблено для навігації й задач: [css/nav.css](../css/nav.css),
 [css/task-form.css](../css/task-form.css) та [css/task-list.css](../css/task-list.css) —
@@ -1242,30 +1276,16 @@ dropdown «Статус», тож зі змінити статус можна і
 
 ## 5. Що ще не реалізовано
 
-Свідомо відсутнє на цьому етапі — заплановано на наступні кроки:
+Supabase Storage, щоденне нагадування в Telegram і AI-фіча «Розбити
+на кроки» — код готовий, міграції/секрети/деплой уже пройдені,
+активно працюють. Свідомо ще не зроблено:
 
-- **Supabase Storage (фото акаунта + файли в «Матеріалах»)** — код
-  готовий, але не запрацює, доки не виконана міграція
-  [20260825030000_setup_storage_bucket.sql](../supabase/migrations/20260825030000_setup_storage_bucket.sql)
-  (розділ 1, «Supabase Storage»); до того часу і «Змінити фото» в
-  меню акаунта, і «Зображення»/«Файл» у «Матеріалах» повертатимуть
-  помилку бази.
-- **Щоденне нагадування в Telegram** — код повністю готовий
-  (`daily-reminder/`), але не запрацює, доки не пройдені ручні
-  кроки з розділу 1 («Щоденне нагадування — потребує ручного
-  налаштування»): секрет, деплой функції, SQL-міграція з
-  розкладом pg_cron.
-- **AI-фічі «Розбити на кроки» і «Що зробити зараз?»** — код готовий
-  (`ai-assist/`, `aiStore.js`, кнопки в `TaskCard.js`/`inbox.js`),
-  але не запрацюють, доки функцію не задеплоєно
-  (`supabase functions deploy ai-assist`) — жодних нових секретів
-  не треба, той самий ключ Groq, що й для розпізнавання голосу.
 - **«Джерела» / «Стрічка»** — код готовий (сторінки, `feed-webhook/`,
-  переклад через Groq), але не запрацює, доки не пройдені ручні
-  кроки з розділу 1 («Джерела і Стрічка — потребує ручного
-  налаштування»): SQL-міграція, секрет, деплой функції, і сам
-  зовнішній парсер (Apify/Firecrawl тощо) — його налаштування вже
-  повністю поза цим проєктом, ми лише приймаємо результат.
+  переклад через Groq), але чи пройдені ручні кроки з розділу 1
+  («Джерела і Стрічка — потребує ручного налаштування»: SQL-міграція,
+  секрет, деплой функції, і сам зовнішній парсер — Apify/Firecrawl
+  тощо, поза цим проєктом) — не підтверджено; перевірити на `/sources`
+  і `/feed` перед тим, як покладатись на них.
 - **Тестування** — автоматичних тестів поки немає. Вхід через
   Google і збереження задач перевірені вручну; автоматичної
   перевірки, що RLS справді не пускає одного користувача до задач
