@@ -79,20 +79,77 @@
   background: var(--line);
 }
 
+/* Лупа — окремим блоком праворуч, перед .nav__account-slot: на
+   десктопі йде прямо перед нею (та вже сама завжди по правому краю
+   через власний margin-left: auto — .nav__search тут нічого
+   додаткового не потребує). На мобільному .nav__panel випадає з
+   потоку (position: fixed, див. медіа-запит нижче), тож без
+   власного margin-left: auto лупа лишалась би зліва біля бренду —
+   там окремо задається. */
 .nav__search {
+  position: relative;
   flex: 0 0 auto;
 }
 
+.nav__search-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.nav__search-toggle:hover,
+.nav__search-toggle[aria-expanded="true"] {
+  background: var(--bg-raised);
+  color: var(--ink);
+}
+
+.nav__search-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Випадна панель під лупою — картка, що зʼявляється по кліку.
+   .nav__search-panel[hidden] — окремий override: сама панель має
+   authored display (flex), інакше [hidden] мовчки програвав би
+   йому (той самий баг, що вже був із .board--hidden й іншими). */
+.nav__search-panel {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  right: 0;
+  z-index: 35;
+  width: min(260px, calc(100vw - 2.5rem));
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+}
+
+.nav__search-panel[hidden] {
+  display: none;
+}
+
 .nav__search-input {
-  width: 150px;
-  padding: 0.4rem 0.7rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.7rem;
   background: var(--bg-raised);
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 0.84rem;
-  transition: width 0.2s ease, border-color 0.15s ease;
+  font-size: 0.87rem;
 }
 
 .nav__search-input::placeholder {
@@ -102,7 +159,37 @@
 .nav__search-input:focus {
   outline: none;
   border-color: var(--accent-dim);
-  width: 190px;
+}
+
+.nav__search-suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.nav__search-suggestions[hidden] {
+  display: none;
+}
+
+.nav__search-suggestion {
+  display: block;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.87rem;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
+}
+
+.nav__search-suggestion:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .nav__links {
@@ -198,8 +285,11 @@
     margin: 0.5rem 0;
   }
 
-  .nav__search-input {
-    width: 100%;
+  /* .nav__panel випадає з потоку (position: fixed вище) — лупа без
+     власного авто-відступу лишалась би одразу біля бренду замість
+     правого краю поруч з іконкою акаунта. */
+  .nav__search {
+    margin-left: auto;
   }
 
   .nav__link {
