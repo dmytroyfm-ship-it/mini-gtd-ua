@@ -16,6 +16,7 @@ import {
   setTaskList,
   setTaskDueDate,
   setTaskRecurrence,
+  setTaskRecurrenceWindow,
   setTaskTags,
 } from "../store/taskStore.js";
 import { suggestNextTaskWithAI } from "../store/aiStore.js";
@@ -47,6 +48,7 @@ export async function renderInbox(root) {
         onListChange: handleListChange,
         onDueDateChange: handleDueDateChange,
         onRecurrenceChange: handleRecurrenceChange,
+        onRecurrenceWindowChange: handleRecurrenceWindowChange,
         onAddTag: handleAddTag,
       });
     } catch (err) {
@@ -106,6 +108,11 @@ export async function renderInbox(root) {
 
   async function handleRecurrenceChange(task, recurrence) {
     await setTaskRecurrence(task.id, recurrence);
+    await refreshList();
+  }
+
+  async function handleRecurrenceWindowChange(task, windowDays) {
+    await setTaskRecurrenceWindow(task.id, windowDays);
     await refreshList();
   }
 

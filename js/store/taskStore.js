@@ -18,6 +18,9 @@
 // @property {"urgent"|"not_urgent"|"daily"|"cancelled"|"waiting"} status
 // @property {string|null} due_date
 // @property {"daily"|"weekly"|"monthly"|null} recurrence
+// @property {number|null} recurrence_window_days — довжина періоду
+//   дедлайну (в днях) ДО due_date; null — точно один фіксований
+//   день, як і раніше. Має сенс лише для weekly/monthly.
 // @property {string|null} deleted_at
 // @property {string} created_at
 // @property {string} updated_at
@@ -107,13 +110,33 @@ export async function setTaskRecurrence(id, recurrence) {
   if (error) throw error;
 }
 
+// windowDays: number | null — довжина періоду дедлайну в днях ДО
+// due_date (наприклад, дедлайн 10-те + windowDays: 9 = період
+// «з 1 по 10»); null прибирає період, лишає точно один фіксований
+// день (TaskCard.js, поле «Початок періоду»).
+export async function setTaskRecurrenceWindow(id, windowDays) {
+  const { error } = await supabase.from("tasks").update({ recurrence_window_days: windowDays }).eq("id", id);
+
+  if (error) throw error;
+}
+
 function nextDueDate(dueDate, recurrence) {
   // Немає дедлайну — рахуємо від сьогодні (немає іншої точки
   // відліку для наступного повторення).
   const base = dueDate ? new Date(`${dueDate}T00:00:00`) : new Date();
 
   if (recurrence === "monthly") {
+    // base.setMonth(base.getMonth() + 1) напряму тут не годиться:
+    // 31 січня так стає 3 березня (лютого 31-го не існує, JS сам
+    // переносить надлишок на наступний місяць) замість очікуваного
+    // 28/29 лютого. Рахуємо явно: переходимо на перше число,
+    // додаємо місяць, тоді ставимо той самий день, обрізаний до
+    // довжини нового місяця.
+    const day = base.getDate();
+    base.setDate(1);
     base.setMonth(base.getMonth() + 1);
+    const lastDayOfMonth = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+    base.setDate(Math.min(day, lastDayOfMonth));
   } else if (recurrence === "weekly") {
     base.setDate(base.getDate() + 7);
   } else {
@@ -148,6 +171,9 @@ export async function completeTask(task) {
       status: task.status,
       due_date: nextDueDate(task.due_date, task.recurrence),
       recurrence: task.recurrence,
+      // Довжина періоду (в днях) — та сама, що й була; лише дедлайн
+      // (кінець періоду) зсувається на наступний цикл вище.
+      recurrence_window_days: task.recurrence_window_days ?? null,
     })
     .select()
     .single();

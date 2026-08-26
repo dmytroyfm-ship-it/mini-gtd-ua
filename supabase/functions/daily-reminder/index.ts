@@ -11,9 +11,10 @@
 // — те, що справді на порядку денному; «Колись», «Читати/Дивитись»
 // і «Архів» свідомо відкладені самим користувачем, у щоденний
 // дайджест не потрапляють), розкладені по блоках:
-//   • прострочені   — due_date < сьогодні
-//   • на сьогодні    — due_date = сьогодні
-//   • на завтра      — due_date = завтра ("до дедлайну 1 день")
+//   • прострочені   — весь період (з урахуванням recurrence_window_days,
+//                      якщо є) уже минув, due_date < сьогодні
+//   • на сьогодні    — сьогодні входить у період [початок..due_date]
+//   • на завтра      — завтра входить у період, а сьогодні — ще ні
 //   • термінові      — status = "urgent", якщо дедлайн не потрапив
 //                      у жоден з блоків вище (чи дедлайну нема);
 //                      термінова задача, що вже в одному з блоків
@@ -75,20 +76,45 @@ function formatDueDate(dateStr: string): string {
   return `${day}.${month}`;
 }
 
-type Task = { id: string; user_id: string; title: string; due_date: string | null; status: string | null };
+type Task = {
+  id: string;
+  user_id: string;
+  title: string;
+  due_date: string | null;
+  status: string | null;
+  recurrence_window_days: number | null;
+};
 type Bucket = "overdue" | "today" | "tomorrow" | "urgent" | "other";
 
+// Початок періоду («з 1 по 10» — due_date є кінцем, 10-те) — без
+// recurrence_window_days період завжди рівно один день, той самий
+// фіксований due_date, що й раніше.
+function windowStartOf(task: Task): string | null {
+  if (!task.due_date) return null;
+  if (!task.recurrence_window_days) return task.due_date;
+  return addDays(task.due_date, -task.recurrence_window_days);
+}
+
 function bucketOf(task: Task, today: string, tomorrow: string): Bucket {
-  if (task.due_date && task.due_date < today) return "overdue";
-  if (task.due_date === today) return "today";
-  if (task.due_date === tomorrow) return "tomorrow";
+  const windowStart = windowStartOf(task);
+  if (windowStart && task.due_date) {
+    if (task.due_date < today) return "overdue"; // весь період уже минув
+    if (windowStart <= today) return "today"; // сьогодні всередині періоду
+    if (windowStart <= tomorrow) return "tomorrow"; // період починається завтра (чи раніше, але не сьогодні)
+  }
   if (task.status === "urgent") return "urgent";
   return "other";
 }
 
 function formatTaskLine(task: Task): string {
   const marker = task.status === "urgent" ? "🔴 " : "";
-  const due = task.due_date ? ` (дедлайн ${formatDueDate(task.due_date)})` : "";
+  const windowStart = windowStartOf(task);
+  let due = "";
+  if (task.due_date && windowStart && windowStart !== task.due_date) {
+    due = ` (${formatDueDate(windowStart)}–${formatDueDate(task.due_date)})`;
+  } else if (task.due_date) {
+    due = ` (дедлайн ${formatDueDate(task.due_date)})`;
+  }
   return `• ${marker}${task.title}${due}`;
 }
 
@@ -144,7 +170,7 @@ Deno.serve(async (req) => {
 
   const { data: tasks, error } = await supabase
     .from("tasks")
-    .select("id, user_id, title, due_date, status")
+    .select("id, user_id, title, due_date, status, recurrence_window_days")
     .is("deleted_at", null)
     .eq("completed", false)
     .in("list", ["inbox", "next"])

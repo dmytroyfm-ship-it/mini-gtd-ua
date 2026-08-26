@@ -24,6 +24,7 @@ import {
   setTaskList,
   setTaskDueDate,
   setTaskRecurrence,
+  setTaskRecurrenceWindow,
   setTaskTags,
 } from "../store/taskStore.js";
 import { renderTaskList } from "../components/TaskList.js";
@@ -77,6 +78,7 @@ export async function renderBoard(root) {
     onListChange: handleListChange,
     onDueDateChange: handleDueDateChange,
     onRecurrenceChange: handleRecurrenceChange,
+    onRecurrenceWindowChange: handleRecurrenceWindowChange,
     onAddTag: handleAddTag,
     draggable: true,
   };
@@ -209,6 +211,11 @@ export async function renderBoard(root) {
 
   async function handleRecurrenceChange(task, recurrence) {
     await setTaskRecurrence(task.id, recurrence);
+    await refreshBoard();
+  }
+
+  async function handleRecurrenceWindowChange(task, windowDays) {
+    await setTaskRecurrenceWindow(task.id, windowDays);
     await refreshBoard();
   }
 

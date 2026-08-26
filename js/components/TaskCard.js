@@ -34,6 +34,16 @@ function escapeHtml(value) {
   return container.innerHTML;
 }
 
+// Період дедлайну зберігається як довжина в днях ДО due_date
+// (recurrence_window_days) — тут рахуємо назад саму дату початку
+// для date-picker'а «Початок періоду» (TaskCard.js, wireRecurrenceWindow).
+function windowStartOf(task) {
+  if (!task.due_date || !task.recurrence_window_days) return "";
+  const start = new Date(`${task.due_date}T00:00:00`);
+  start.setDate(start.getDate() - task.recurrence_window_days);
+  return start.toISOString().slice(0, 10);
+}
+
 const TRASH_ICON_SVG = `
   <svg viewBox="0 0 20 20" aria-hidden="true" class="task-card__trash-icon">
     <path d="M4 6h12M8 6V4.5A1.5 1.5 0 0 1 9.5 3h1A1.5 1.5 0 0 1 12 4.5V6m-6.5 0 .6 9.4A1.5 1.5 0 0 0 7.6 17h4.8a1.5 1.5 0 0 0 1.5-1.6L14.5 6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -49,6 +59,7 @@ export function renderTaskCard(task, handlers = {}) {
     onListChange,
     onDueDateChange,
     onRecurrenceChange,
+    onRecurrenceWindowChange,
     onAddTag,
     draggable,
     detail,
@@ -84,6 +95,11 @@ export function renderTaskCard(task, handlers = {}) {
     .map((tag) => `<li class="task-card__tag">${escapeHtml(tag)}</li>`)
     .join("");
   const noteHtml = task.note ? `<p class="task-card__note">${escapeHtml(task.note)}</p>` : "";
+  // Період показуємо лише для weekly/monthly — для "щодня" й "не
+  // повторюється" (де recurrence_window_days ігнорується скрізь
+  // нижче) поле початку періоду просто ховається.
+  const showWindow = task.recurrence === "weekly" || task.recurrence === "monthly";
+  const windowStartValue = windowStartOf(task);
 
   card.innerHTML = `
     <div class="task-card__header">
@@ -134,6 +150,14 @@ export function renderTaskCard(task, handlers = {}) {
 
     <div class="task-card__due">
       <span class="task-card__due-label">Дедлайн</span>
+      <input
+        type="date"
+        class="task-card__due-window-start"
+        aria-label="Початок періоду (необов'язково)"
+        value="${windowStartValue}"
+        ${showWindow ? "" : "hidden"}
+      />
+      <span class="task-card__due-range-arrow" ${showWindow ? "" : "hidden"}>→</span>
       <input type="date" class="task-card__due-input" value="${task.due_date || ""}" />
       <button type="button" class="task-card__due-clear" aria-label="Прибрати дедлайн" ${task.due_date ? "" : "hidden"}>✕</button>
       <select class="task-card__recurrence" aria-label="Повторення">
@@ -168,6 +192,7 @@ export function renderTaskCard(task, handlers = {}) {
   wireListSelect(card, task, onListChange);
   wireDueDate(card, task, onDueDateChange);
   wireRecurrence(card, task, onRecurrenceChange);
+  wireRecurrenceWindow(card, task, onRecurrenceWindowChange);
   wireAddTag(card, task, onAddTag);
   wireAiBreakdown(card, task, detailedSubtasks);
   loadSubtasks(card, task, detailedSubtasks);
@@ -414,6 +439,51 @@ function wireRecurrence(card, task, onRecurrenceChange) {
       window.alert("Не вдалося зберегти повторення. Спробуйте ще раз.");
     } finally {
       select.disabled = false;
+    }
+  });
+}
+
+// Поле «Початок періоду» — необов'язкове; має сенс лише для
+// weekly/monthly (renderTaskCard ховає його інакше). Зберігає не
+// саму дату, а довжину періоду в днях ДО дедлайну
+// (recurrence_window_days) — так наступний цикл повторення сам
+// зсуває обидві межі періоду на однакову відстань (completeTask()
+// в taskStore.js), без окремого перерахунку тут.
+function wireRecurrenceWindow(card, task, onRecurrenceWindowChange) {
+  const startInput = card.querySelector(".task-card__due-window-start");
+  const dueInput = card.querySelector(".task-card__due-input");
+
+  startInput.addEventListener("change", async () => {
+    if (!onRecurrenceWindowChange) return;
+
+    if (!dueInput.value) {
+      window.alert("Спершу вкажіть дедлайн (кінець періоду) — тоді можна задати початок.");
+      startInput.value = "";
+      return;
+    }
+
+    let windowDays = null;
+    if (startInput.value) {
+      const days = Math.round((new Date(dueInput.value) - new Date(startInput.value)) / 86400000);
+      if (days < 0) {
+        window.alert("Початок періоду не може бути пізніше за дедлайн.");
+        startInput.value = windowStartOf(task);
+        return;
+      }
+      windowDays = days;
+    }
+
+    startInput.disabled = true;
+
+    try {
+      await onRecurrenceWindowChange(task, windowDays);
+      task.recurrence_window_days = windowDays;
+    } catch (err) {
+      console.error(err);
+      startInput.value = windowStartOf(task);
+      window.alert("Не вдалося зберегти період. Спробуйте ще раз.");
+    } finally {
+      startInput.disabled = false;
     }
   });
 }

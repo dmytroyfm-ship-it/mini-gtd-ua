@@ -15,6 +15,7 @@ import {
   setTaskList,
   setTaskDueDate,
   setTaskRecurrence,
+  setTaskRecurrenceWindow,
   setTaskTags,
 } from "../store/taskStore.js";
 import { renderTaskCard } from "../components/TaskCard.js";
@@ -68,6 +69,7 @@ export async function renderTaskDetail(root, params) {
       onListChange: handleListChange,
       onDueDateChange: handleDueDateChange,
       onRecurrenceChange: handleRecurrenceChange,
+      onRecurrenceWindowChange: handleRecurrenceWindowChange,
       onAddTag: handleAddTag,
       detail: true,
       detailedSubtasks: true,
@@ -122,6 +124,11 @@ export async function renderTaskDetail(root, params) {
 
   async function handleRecurrenceChange(t, recurrence) {
     await setTaskRecurrence(t.id, recurrence);
+    await loadTask();
+  }
+
+  async function handleRecurrenceWindowChange(t, windowDays) {
+    await setTaskRecurrenceWindow(t.id, windowDays);
     await loadTask();
   }
 

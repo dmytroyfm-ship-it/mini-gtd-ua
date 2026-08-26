@@ -382,6 +382,39 @@
   color: var(--accent);
 }
 
+.task-card__due-window-start {
+  flex: 0 1 auto;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color-scheme: dark;
+}
+
+.task-card__due-window-start:focus {
+  outline: none;
+  border-color: var(--accent-dim);
+}
+
+.task-card__due-range-arrow {
+  flex: 0 0 auto;
+  color: var(--ink-dim);
+  font-size: 0.8rem;
+}
+
+/* .task-card__due-clear/.task-card__due-window-start/
+   .task-card__due-range-arrow усі мають власне authored display —
+   без цього override [hidden] мовчки програє авторському стилю
+   (той самий баг, що вже був із .board--hidden/.account-menu__panel). */
+.task-card__due-clear[hidden],
+.task-card__due-window-start[hidden],
+.task-card__due-range-arrow[hidden] {
+  display: none;
+}
+
 .task-card__recurrence {
   flex: 0 1 auto;
   padding: 0.4rem 0.6rem;
