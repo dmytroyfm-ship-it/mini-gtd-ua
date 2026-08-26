@@ -95,6 +95,22 @@
   border-bottom: 1px solid var(--line);
 }
 
+/* Бейдж завжди крайній праворуч (HistoryItem.js: кнопка «Повернути»,
+   коли є, іде в розмітці ПЕРЕД бейджем, не після) — margin-left: auto
+   штовхає до правого краю САМЕ ОДИН елемент за раз (кнопку, коли
+   вона є, інакше сам бейдж — border+adjacent-sibling-селектор нижче
+   обирає рівно один із двох, ніколи обидва одразу: два margin-left:
+   auto на одному флекс-рядку ділили б залишок місця порівну між
+   собою замість одного спільного відступу — той самий баг, що вже
+   був у навігації). */
+.history-item__restore {
+  margin-left: auto;
+}
+
+.history-item__body + .history-item__badge {
+  margin-left: auto;
+}
+
 .history-item:last-child {
   border-bottom: none;
 }
@@ -118,8 +134,15 @@
   line-height: 1.5;
 }
 
+/* Фіксована ширина (не flex: 0 0 auto — та підлаштовувалась би під
+   кожен текст окремо) — «✅ Виконано»/«🚫 Скасовано»/«📁 В архіві»
+   різної довжини самі по собі, але з датою поруч мають виглядати
+   однаковими "рамками" в одну лінію, а не стрибати по ширині від
+   рядка до рядка. */
 .history-item__badge {
   flex: 0 0 auto;
+  min-width: 12rem;
+  text-align: center;
   padding: 0.3rem 0.65rem;
   border-radius: 999px;
   font-size: 0.78rem;

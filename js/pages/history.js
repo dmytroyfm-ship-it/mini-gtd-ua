@@ -15,7 +15,7 @@ const PRESETS = [
   { key: "week", label: "Поточний тиждень" },
   { key: "last-week", label: "Минулий тиждень" },
   { key: "month", label: "Поточний місяць" },
-  { key: "all", label: "Увесь час" },
+  { key: "range", label: "Діапазон дат" },
 ];
 
 // Понеділок тижня, що містить date (getDay(): 0=нд..6=сб).
@@ -35,7 +35,13 @@ function endOfWeek(monday) {
   return result;
 }
 
-// preset → { from: Date, to: Date } чи null для "весь час" (без меж).
+// preset → { from: Date, to: Date } чи { empty: true } для "Діапазон
+// дат" (і будь-якого незрозумілого пресету — напр. після ручного
+// очищення обох полів дат без активного пресету): нічого не
+// показувати, поки не вказано хоч одну дату вручну нижче. Раніше тут
+// була "Увесь час" (null = без меж, показати геть усе одразу) —
+// прибрано на прохання користувача: бачити ВСІ задачі без жодного
+// фільтра було зайвим.
 function rangeOfPreset(preset) {
   const now = new Date();
 
@@ -60,7 +66,7 @@ function rangeOfPreset(preset) {
     const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     return { from, to };
   }
-  return null;
+  return { empty: true };
 }
 
 // "2026-08-25" (з <input type="date">) → початок/кінець того дня
@@ -115,7 +121,7 @@ export async function renderHistory(root) {
   const listSlot = root.querySelector(".history-list-slot");
 
   let allTasks = [];
-  let activePreset = "all";
+  let activePreset = "today";
 
   function setActivePreset(preset) {
     activePreset = preset;
@@ -131,22 +137,24 @@ export async function renderHistory(root) {
 
   function render() {
     const range = currentRange();
-    const filtered = range
-      ? allTasks.filter((task) => {
+    const filtered = range.empty
+      ? []
+      : allTasks.filter((task) => {
           const at = resolvedAtOf(task);
           if (range.from && at < range.from) return false;
           if (range.to && at > range.to) return false;
           return true;
-        })
-      : allTasks;
+        });
 
     const doneCount = filtered.filter((task) => task.completed).length;
     const cancelledCount = filtered.filter((task) => task.status === "cancelled").length;
     summary.textContent = `✅ Виконано: ${doneCount} · 🚫 Скасовано: ${cancelledCount}`;
 
-    listSlot.replaceChildren(
-      renderHistoryList(filtered, { onRestore: handleRestore }, "За цей період нічого нема.")
-    );
+    const emptyText = range.empty
+      ? "Вкажіть дати «З» і/або «По» вище, щоб побачити задачі за проміжок."
+      : "За цей період нічого нема.";
+
+    listSlot.replaceChildren(renderHistoryList(filtered, { onRestore: handleRestore }, emptyText));
   }
 
   async function loadAll() {
@@ -173,15 +181,15 @@ export async function renderHistory(root) {
 
   presetButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      fromInput.value = "";
-      toInput.value = "";
       const range = rangeOfPreset(button.dataset.preset);
-      if (range) {
-        fromInput.value = toDateInputValue(range.from);
-        toInput.value = toDateInputValue(range.to);
-      }
+      fromInput.value = toDateInputValue(range.from);
+      toInput.value = toDateInputValue(range.to);
       setActivePreset(button.dataset.preset);
       render();
+      // «Діапазон дат» сам по собі нічого не показує (empty: true) —
+      // одразу переносимо фокус у перше поле дати, щоб не змушувати
+      // клікати ще раз.
+      if (button.dataset.preset === "range") fromInput.focus();
     });
   });
 
@@ -194,6 +202,6 @@ export async function renderHistory(root) {
     render();
   });
 
-  setActivePreset("all");
+  setActivePreset("today");
   await loadAll();
 }

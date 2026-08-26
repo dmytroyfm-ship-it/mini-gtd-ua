@@ -47,13 +47,16 @@ export function renderHistoryItem(task, handlers = {}) {
   const noteHtml = task.note ? `<p class="history-item__note">${escapeHtml(task.note)}</p>` : "";
   const safeTitle = escapeHtml(task.title);
 
+  // Кнопка (коли є) — перед бейджем, бейдж завжди останній
+  // (крайній праворуч, фіксованої ширини — css/history.css) — щоб
+  // рядки з кнопкою й без неї однаково вирівнювались по правому краю.
   row.innerHTML = `
     <div class="history-item__body">
       <p class="history-item__title">${safeTitle}</p>
       ${noteHtml}
     </div>
-    <span class="history-item__badge history-item__badge--${badge.cls}">${badge.text} · ${formatDate(resolvedAt)}</span>
     ${isRestorable ? `<button type="button" class="history-item__restore">Повернути у Вхідні</button>` : ""}
+    <span class="history-item__badge history-item__badge--${badge.cls}">${badge.text} · ${formatDate(resolvedAt)}</span>
   `;
 
   if (isRestorable) {
