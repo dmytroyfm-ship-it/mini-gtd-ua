@@ -34,6 +34,19 @@ function escapeHtml(value) {
   return container.innerHTML;
 }
 
+// Date → "YYYY-MM-DD" за МІСЦЕВИМИ полями (getFullYear/getMonth/
+// getDate), не toISOString() (той завжди повертає UTC): дата вище
+// побудована як опівніч за МІСЦЕВИМ часом (new Date(`${...}T00:00:00`)
+// без "Z" — так параситься за специфікацією), і toISOString() у
+// таймзоні з позитивним зсувом (Київ, UTC+2/+3) відкочував би її на
+// день назад (опівніч 1 вересня за Києвом — це 31 серпня ~21:00 UTC).
+function toLocalDateString(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 // Період дедлайну зберігається як довжина в днях ДО due_date
 // (recurrence_window_days) — тут рахуємо назад саму дату початку
 // для date-picker'а «Початок періоду» (TaskCard.js, wireRecurrenceWindow).
@@ -41,7 +54,7 @@ function windowStartOf(task) {
   if (!task.due_date || !task.recurrence_window_days) return "";
   const start = new Date(`${task.due_date}T00:00:00`);
   start.setDate(start.getDate() - task.recurrence_window_days);
-  return start.toISOString().slice(0, 10);
+  return toLocalDateString(start);
 }
 
 const TRASH_ICON_SVG = `

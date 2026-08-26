@@ -150,6 +150,20 @@ export async function setTaskCompleted(id, completed) {
 // останнім днем свого місяця (наприклад, 30-е в 31-денному місяці),
 // зберігається буквально — те саме число, обрізане лише якщо в
 // якомусь місяці його справді нема (Math.min нижче, в nextDueDate).
+// Date → "YYYY-MM-DD" за МІСЦЕВИМИ полями (getFullYear/getMonth/
+// getDate), не toISOString() (той завжди повертає UTC): дати тут
+// будуються як опівніч за МІСЦЕВИМ часом (new Date(`${...}T00:00:00`)
+// без "Z" — так параситься за специфікацією), і toISOString() у
+// таймзоні з позитивним зсувом (Київ, UTC+2/+3) відкочував би їх на
+// день назад (опівніч 1 вересня за Києвом — це 31 серпня ~21:00 UTC;
+// саме цей баг користувач і побачив у «Початку періоду»).
+function toLocalDateString(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function computeAnchorDay(dueDate) {
   const date = new Date(`${dueDate}T00:00:00`);
   const day = date.getDate();
@@ -217,7 +231,7 @@ function nextDueDate(dueDate, recurrence, anchorDay) {
     base.setDate(base.getDate() + 1);
   }
 
-  return base.toISOString().slice(0, 10);
+  return toLocalDateString(base);
 }
 
 // Позначає задачу виконаною; якщо в неї задано recurrence — одразу
