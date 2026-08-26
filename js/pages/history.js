@@ -11,10 +11,11 @@ import { getArchivedTasks, restoreFromHistory } from "../store/taskStore.js";
 import { renderHistoryList } from "../components/HistoryList.js";
 
 const PRESETS = [
-  { key: "all", label: "Увесь час" },
+  { key: "today", label: "Сьогодні" },
   { key: "week", label: "Поточний тиждень" },
   { key: "last-week", label: "Минулий тиждень" },
-  { key: "month", label: "Цей місяць" },
+  { key: "month", label: "Поточний місяць" },
+  { key: "all", label: "Увесь час" },
 ];
 
 // Понеділок тижня, що містить date (getDay(): 0=нд..6=сб).
@@ -38,6 +39,13 @@ function endOfWeek(monday) {
 function rangeOfPreset(preset) {
   const now = new Date();
 
+  if (preset === "today") {
+    const from = new Date(now);
+    from.setHours(0, 0, 0, 0);
+    const to = new Date(now);
+    to.setHours(23, 59, 59, 999);
+    return { from, to };
+  }
   if (preset === "week") {
     const from = mondayOf(now);
     return { from, to: endOfWeek(from) };

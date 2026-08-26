@@ -24,20 +24,25 @@
 //      ШІ їх визначив).
 //   5. /report [період]  — той самий звіт, що й на сторінці
 //                          «Історія» (js/pages/history.js): виконані
-//                          й скасовані задачі (list = "archive") за
-//                          період: без аргументу — минулий тиждень
-//                          (найчастіший запит), "тиждень" — поточний,
-//                          "місяць" — цей місяць, "весь" — без
-//                          обмежень, чи довільний
-//                          "ДД-ММ-РРРР ДД-ММ-РРРР". Плюс готові
-//                          команди для меню бота (тицяєш, не набираєш
-//                          текст) — /report_week, /report_month,
-//                          /report_all, /report_lastweek
+//                          й скасовані задачі (completed = true чи
+//                          status = "cancelled" — видно одразу, не
+//                          чекаючи нічного автоперенесення в list =
+//                          "archive" о 22:30) за період: "сьогодні",
+//                          "тиждень" — поточний, "минулий" —
+//                          попередній тиждень (це й дефолт без
+//                          аргументу — найчастіший запит), "місяць"
+//                          — поточний, "весь" — без обмежень, чи
+//                          довільний "ДД-ММ-РРРР ДД-ММ-РРРР". Плюс
+//                          готові команди для меню бота (тицяєш, не
+//                          набираєш текст) — /report_today,
+//                          /report_week, /report_lastweek,
+//                          /report_month, /report_all
 //                          (COMMAND_TO_ARGS нижче — той самий
-//                          parseReportRange() на обидва шляхи). Саме
-//                          меню (кнопка "/" у Telegram) реєструється
-//                          окремо, один раз, через setMyCommands —
-//                          docs/ARCHITECTURE.md.
+//                          parseReportRange() на обидва шляхи, той
+//                          самий порядок, що й пресети на сторінці
+//                          «Історія»). Саме меню (кнопка "/" у
+//                          Telegram) реєструється окремо, один раз,
+//                          через setMyCommands — docs/ARCHITECTURE.md.
 //   6. /tasks             — той самий дайджест, що й ранкове
 //                          нагадування (daily-reminder/, будні
 //                          9:00), на вимогу в будь-який момент;
@@ -248,13 +253,16 @@ function lastWeekRange(today: string): ReportRange {
 function parseReportRange(args: string[]): ReportRange {
   const today = todayInKyiv();
 
+  if (args[0] === "сьогодні") {
+    return { from: today, to: today, label: "сьогодні" };
+  }
   if (args[0] === "тиждень") {
     const from = mondayOf(today);
     return { from, to: addDays(from, 6), label: "поточний тиждень" };
   }
   if (args[0] === "місяць") {
     const { from, to } = monthRange(today);
-    return { from, to, label: "цей місяць" };
+    return { from, to, label: "поточний місяць" };
   }
   if (args[0] === "весь") {
     return { from: null, to: null, label: "увесь час" };
@@ -278,10 +286,11 @@ function parseReportRange(args: string[]): ReportRange {
 // самий аргумент, що й текстова команда, — parseReportRange() один
 // на всі шляхи.
 const COMMAND_TO_ARGS: Record<string, string> = {
+  "/report_today": "сьогодні",
   "/report_week": "тиждень",
+  "/report_lastweek": "минулий",
   "/report_month": "місяць",
   "/report_all": "весь",
-  "/report_lastweek": "минулий",
 };
 
 type ArchivedTask = {
@@ -296,7 +305,12 @@ type ArchivedTask = {
 // Той самий звіт, що й «Історія» в застосунку (js/pages/history.js)
 // — filtered за completed_at/cancelled_at (не updated_at, який
 // перезаписує вечірнє автоперенесення), лише текстом замість
-// інтерактивного списку.
+// інтерактивного списку. completed = true АБО status = "cancelled"
+// АБО list = "archive" (не лише list = "archive"!) — задача,
+// виконана сьогодні вдень, іще не встигла потрапити в list =
+// "archive" (те саме нічне автоперенесення о 22:30), інакше "/report
+// сьогодні" мовчки не показав би її аж до вечора (той самий баг, що
+// був у getArchivedTasks() в js/store/taskStore.js, виправлено й тут).
 async function handleReport(chatId: number, userId: string, argsText: string) {
   const range = parseReportRange(argsText.trim().split(/\s+/).filter(Boolean));
 
@@ -304,7 +318,7 @@ async function handleReport(chatId: number, userId: string, argsText: string) {
     .from("tasks")
     .select("title, completed, status, completed_at, cancelled_at, updated_at")
     .eq("user_id", userId)
-    .eq("list", "archive")
+    .or("completed.eq.true,status.eq.cancelled,list.eq.archive")
     .is("deleted_at", null);
 
   if (error) {
@@ -332,7 +346,7 @@ async function handleReport(chatId: number, userId: string, argsText: string) {
     `📊 Звіт за ${range.label}:\n\n` +
       `✅ Виконано (${done.length}):\n${listOf(done)}\n\n` +
       `🚫 Скасовано (${cancelled.length}):\n${listOf(cancelled)}\n\n` +
-      `Інші періоди: /report тиждень · /report місяць · /report весь · /report ДД-ММ-РРРР ДД-ММ-РРРР`
+      `Інші періоди: /report сьогодні · /report тиждень · /report минулий · /report місяць · /report весь · /report ДД-ММ-РРРР ДД-ММ-РРРР`
   );
 }
 
