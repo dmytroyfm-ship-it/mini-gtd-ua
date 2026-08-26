@@ -455,16 +455,24 @@ export async function deleteTaskPermanently(id) {
   if (error) throw error;
 }
 
-// Історія (/history): задачі, автоматично перенесені сюди о 22:30
-// (pg_cron, supabase/migrations/20260826030000_...) — виконані чи
-// скасовані, list = "archive". Сортування — updated_at (момент
-// самого перенесення, той самий для всього дня одразу; для звіту по
-// датах сторінка сама читає completed_at/cancelled_at кожної задачі).
+// Історія (/history): виконані чи скасовані задачі — completed = true
+// або status = "cancelled", НЕЗАЛЕЖНО від того, чи вже пройшло нічне
+// автоперенесення в list = "archive" (pg_cron о 22:30, supabase/
+// migrations/20260826030000_...). Раніше фільтрували лише за
+// list = "archive" — щойно виконана вдень задача була б невидимою
+// в «Історії» аж до вечора, поки не спрацює cron; тепер видно одразу
+// (сам cron і далі потрібен — прибирає такі задачі з дошки/інших
+// списків, «Історії» більше не стосується). list = "archive" у
+// запиті лишається третьою умовою — старі записи, занесені сюди ще
+// вручну до автоперенесення, самі по собі не completed/cancelled
+// (HistoryItem.js показує їх нейтральною позначкою «📁 В архіві»).
+// Сортування — updated_at (для звіту по датах сторінка сама читає
+// completed_at/cancelled_at кожної задачі).
 export async function getArchivedTasks() {
   const { data, error } = await supabase
     .from("tasks")
     .select("*")
-    .eq("list", "archive")
+    .or("completed.eq.true,status.eq.cancelled,list.eq.archive")
     .is("deleted_at", null)
     .order("updated_at", { ascending: false });
 
