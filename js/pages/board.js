@@ -39,9 +39,9 @@ const COLUMNS = [
   { key: "urgent", title: "Термінові" },
   { key: "not_urgent", title: "Не термінові" },
   { key: "daily", title: "Повторювані" },
+  { key: "waiting", title: "В очікуванні" },
   { key: "done", title: "Виконані" },
   { key: "cancelled", title: "Скасовані" },
-  { key: "waiting", title: "В очікуванні" },
 ];
 
 function bucketOf(task) {
