@@ -25,14 +25,19 @@
 //   5. /report [період]  — той самий звіт, що й на сторінці
 //                          «Історія» (js/pages/history.js): виконані
 //                          й скасовані задачі (list = "archive") за
-//                          період. Період — текстом, без inline-
-//                          клавіатури (бот більше ніде її не
-//                          використовує, зайва складність для однієї
-//                          команди): без аргументу — минулий тиждень
+//                          період: без аргументу — минулий тиждень
 //                          (найчастіший запит), "тиждень" — поточний,
 //                          "місяць" — цей місяць, "весь" — без
 //                          обмежень, чи довільний
-//                          "ДД-ММ-РРРР ДД-ММ-РРРР".
+//                          "ДД-ММ-РРРР ДД-ММ-РРРР". Плюс готові
+//                          команди для меню бота (тицяєш, не набираєш
+//                          текст) — /report_week, /report_month,
+//                          /report_all, /report_lastweek
+//                          (COMMAND_TO_ARGS нижче — той самий
+//                          parseReportRange() на обидва шляхи). Саме
+//                          меню (кнопка "/" у Telegram) реєструється
+//                          окремо, один раз, через setMyCommands —
+//                          docs/ARCHITECTURE.md.
 //
 // Довірений сервер — service_role key (повний доступ в обхід RLS,
 // бо на момент запиту немає Supabase-сесії користувача, лише
@@ -217,9 +222,17 @@ function parseUADate(value: string): string | null {
   return `${year}-${month}-${day}`;
 }
 
+function lastWeekRange(today: string): ReportRange {
+  const from = addDays(mondayOf(today), -7);
+  return { from, to: addDays(from, 6), label: "минулий тиждень" };
+}
+
 // Той самий набір періодів, що й пресети на сторінці «Історія»
-// (history.js) — без аргументу за замовчуванням минулий тиждень,
-// бо це найчастіший запит користувача.
+// (history.js) — без аргументу (чи "минулий") за замовчуванням
+// минулий тиждень, бо це найчастіший запит користувача. Викликається
+// і з тексту після /report, і напряму з готових команд меню бота
+// (/report_week тощо, COMMAND_TO_ARGS нижче) — той самий парсер для
+// обох шляхів.
 function parseReportRange(args: string[]): ReportRange {
   const today = todayInKyiv();
 
@@ -234,6 +247,9 @@ function parseReportRange(args: string[]): ReportRange {
   if (args[0] === "весь") {
     return { from: null, to: null, label: "увесь час" };
   }
+  if (args[0] === "минулий") {
+    return lastWeekRange(today);
+  }
   if (args[0] && args[1]) {
     const from = parseUADate(args[0]);
     const to = parseUADate(args[1]);
@@ -241,9 +257,20 @@ function parseReportRange(args: string[]): ReportRange {
   }
 
   // Без аргументу (чи невідомий аргумент) — минулий тиждень.
-  const from = addDays(mondayOf(today), -7);
-  return { from, to: addDays(from, 6), label: "минулий тиждень" };
+  return lastWeekRange(today);
 }
+
+// Готові команди меню бота (Telegram "/" зі списком, налаштованим
+// через setMyCommands — docs/ARCHITECTURE.md) — тицяєш замість того,
+// щоб набирати "/report тиждень" руками. Кожна лише підставляє той
+// самий аргумент, що й текстова команда, — parseReportRange() один
+// на всі шляхи.
+const COMMAND_TO_ARGS: Record<string, string> = {
+  "/report_week": "тиждень",
+  "/report_month": "місяць",
+  "/report_all": "весь",
+  "/report_lastweek": "минулий",
+};
 
 type ArchivedTask = {
   title: string;
@@ -315,7 +342,9 @@ async function handleMessage(message: Record<string, unknown>) {
   }
 
   if (text.startsWith("/report")) {
-    await handleReport(chatId, userId, text.slice("/report".length));
+    const command = text.split(/\s+/)[0];
+    const argsText = COMMAND_TO_ARGS[command] ?? text.slice(command.length);
+    await handleReport(chatId, userId, argsText);
     return;
   }
 

@@ -439,7 +439,31 @@ Telegram, тоді POST на `WHISPER_API_BASE_URL` (дефолт — Groq,
 `mondayOf`, `monthRange` тощо, усе за київським часом, рядками
 `"YYYY-MM-DD"`, щоб порівнювати лексикографічно, без плутанини з UTC
 сервера); фільтрує за `completed_at`/`cancelled_at` (не `updated_at`
-— той перезаписало б вечірнє автоперенесення).
+— той перезаписало б вечірнє автоперенесення). Готові команди для
+кожного періоду — `/report_week`/`/report_month`/`/report_all`/
+`/report_lastweek` (`COMMAND_TO_ARGS` у коді) — та сама
+`parseReportRange()`, лише без потреби набирати текст після
+`/report`, якщо в меню бота (нижче) саме тицяєш команду.
+
+**Меню команд бота** («/» у Telegram показує список із описом —
+тицяєш замість набору руками) — реєструється окремо від коду, один
+раз, через `setMyCommands` (сам бачить лише той, хто знає bot token,
+тому Claude це виконати не може):
+
+```bash
+curl -X POST "https://api.telegram.org/bot<токен_від_BotFather>/setMyCommands" \
+  -H "Content-Type: application/json" \
+  -d '{"commands":[
+    {"command":"start","description":"Прив'\''язати акаунт до бота"},
+    {"command":"report","description":"Звіт за минулий тиждень"},
+    {"command":"report_week","description":"Звіт за поточний тиждень"},
+    {"command":"report_month","description":"Звіт за цей місяць"},
+    {"command":"report_all","description":"Звіт за весь час"}
+  ]}'
+```
+
+Змінити список — той самий виклик з новим масивом `commands` (він
+щоразу перезаписує весь список, не додає).
 
 **Захист вебхука** — `TELEGRAM_WEBHOOK_SECRET`: Telegram підставляє
 цей самий секрет у заголовок `X-Telegram-Bot-Api-Secret-Token`
