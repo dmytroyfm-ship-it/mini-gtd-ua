@@ -32,7 +32,7 @@
 //                          (найчастіший запит), "тиждень" — поточний,
 //                          "місяць" — цей місяць, "весь" — без
 //                          обмежень, чи довільний
-//                          "РРРР-ММ-ДД РРРР-ММ-ДД".
+//                          "ДД-ММ-РРРР ДД-ММ-РРРР".
 //
 // Довірений сервер — service_role key (повний доступ в обхід RLS,
 // бо на момент запиту немає Supabase-сесії користувача, лише
@@ -204,7 +204,18 @@ async function handleStart(chatId: number, code: string | undefined, from: Recor
 }
 
 type ReportRange = { from: string | null; to: string | null; label: string };
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+// Користувач вводить дати як ДД-ММ-РРРР (звичний формат) — усередині
+// все одно рахуємо рядками "YYYY-MM-DD" (todayInKyiv/mondayOf/
+// monthRange з _shared/dateHelpers.ts і так їх повертають, зручно
+// порівнювати лексикографічно), тож на вході конвертуємо назад.
+const DATE_UA = /^(\d{2})-(\d{2})-(\d{4})$/;
+
+function parseUADate(value: string): string | null {
+  const match = DATE_UA.exec(value);
+  if (!match) return null;
+  const [, day, month, year] = match;
+  return `${year}-${month}-${day}`;
+}
 
 // Той самий набір періодів, що й пресети на сторінці «Історія»
 // (history.js) — без аргументу за замовчуванням минулий тиждень,
@@ -223,8 +234,10 @@ function parseReportRange(args: string[]): ReportRange {
   if (args[0] === "весь") {
     return { from: null, to: null, label: "увесь час" };
   }
-  if (args[0] && ISO_DATE.test(args[0]) && args[1] && ISO_DATE.test(args[1])) {
-    return { from: args[0], to: args[1], label: `${args[0]} — ${args[1]}` };
+  if (args[0] && args[1]) {
+    const from = parseUADate(args[0]);
+    const to = parseUADate(args[1]);
+    if (from && to) return { from, to, label: `${args[0]} — ${args[1]}` };
   }
 
   // Без аргументу (чи невідомий аргумент) — минулий тиждень.
@@ -280,7 +293,7 @@ async function handleReport(chatId: number, userId: string, argsText: string) {
     `📊 Звіт за ${range.label}:\n\n` +
       `✅ Виконано (${done.length}):\n${listOf(done)}\n\n` +
       `🚫 Скасовано (${cancelled.length}):\n${listOf(cancelled)}\n\n` +
-      `Інші періоди: /report тиждень · /report місяць · /report весь · /report РРРР-ММ-ДД РРРР-ММ-ДД`
+      `Інші періоди: /report тиждень · /report місяць · /report весь · /report ДД-ММ-РРРР ДД-ММ-РРРР`
   );
 }
 

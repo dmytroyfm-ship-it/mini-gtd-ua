@@ -70,10 +70,10 @@ function addDays(dateStr: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-// "2026-08-25" → "25.08" — компактніше в списку, ніж повна дата.
+// "2026-08-25" → "25-08-2026" (ДД-ММ-РРРР, за проханням користувача).
 function formatDueDate(dateStr: string): string {
-  const [, month, day] = dateStr.split("-");
-  return `${day}.${month}`;
+  const [year, month, day] = dateStr.split("-");
+  return `${day}-${month}-${year}`;
 }
 
 type Task = {
