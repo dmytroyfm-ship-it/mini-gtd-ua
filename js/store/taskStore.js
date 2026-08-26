@@ -70,16 +70,33 @@ export async function getTasks(list) {
 // як просто "Повторювана", а рівно з 1-го — і лишається видимою й
 // після завершення періоду, якщо не позначена виконаною (звичайна
 // логіка для прострочених задач, тут нічого додатково не робимо).
-// Немає recurrence_window_days (null — звичайний фіксований дедлайн
-// чи взагалі без дедлайну) — завжди активна, як і раніше. Саме
-// == null, не falsy-перевірка: 0 — валідна довжина періоду (початок
-// і дедлайн той самий день), а !0 помилково означало б "періоду
-// нема" і показувало задачу на дошці зарано.
+// Саме == null, не falsy-перевірка: 0 — валідна довжина періоду
+// (початок і дедлайн той самий день), а !0 помилково означало б
+// "періоду нема" і показувало задачу на дошці зарано.
+//
+// Немає recurrence_window_days (null) і задача НЕ повторювана —
+// завжди активна: звичайний фіксований дедлайн чи задача взагалі
+// без дедлайну заздалегідь видно на дошці (щоб бачити майбутні
+// дедлайни наперед, а не лише в сам день).
+//
+// Немає recurrence_window_days, але задача ПОВТОРЮВАНА —
+// поводиться як period = 0 (старт = сам due_date), не "завжди
+// активна": completeTask() одразу клонує нову задачу на наступний
+// цикл (напр. "щодня" → завтра), і без цього правила вона миттю
+// з'являлась би в тій самій колонці «Повторювані» вже сьогодні,
+// одразу поруч із щойно виконаною — виглядало б, ніби залишилась
+// ще одна копія на сьогодні, хоча насправді це вже завтрашня.
 export function isWindowActive(task) {
-  if (!task.due_date || task.recurrence_window_days == null) return true;
-  const start = new Date(`${task.due_date}T00:00:00`);
-  start.setDate(start.getDate() - task.recurrence_window_days);
-  return toLocalDateString(start) <= toLocalDateString(new Date());
+  if (!task.due_date) return true;
+
+  if (task.recurrence_window_days != null) {
+    const start = new Date(`${task.due_date}T00:00:00`);
+    start.setDate(start.getDate() - task.recurrence_window_days);
+    return toLocalDateString(start) <= toLocalDateString(new Date());
+  }
+
+  if (!task.recurrence) return true;
+  return task.due_date <= toLocalDateString(new Date());
 }
 
 // Усі активні задачі користувача для дошки (/board), яка сама
