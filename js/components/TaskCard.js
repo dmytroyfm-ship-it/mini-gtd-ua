@@ -150,8 +150,8 @@ export function renderTaskCard(task, handlers = {}) {
           <option value="urgent">Термінові</option>
           <option value="not_urgent">Не термінові</option>
           <option value="daily">Повторювані</option>
-          <option value="cancelled">Скасовані</option>
           <option value="waiting">В очікуванні</option>
+          <option value="cancelled">Скасовані</option>
         </select>
       </label>
       <label class="task-card__field">
