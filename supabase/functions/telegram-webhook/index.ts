@@ -22,6 +22,17 @@
 //                          справді потребує структурування.
 //   4. у відповідь бот пише "✅ Додано в Inbox: …" (+ підзадачі, якщо
 //      ШІ їх визначив).
+//   5. /report [період]  — той самий звіт, що й на сторінці
+//                          «Історія» (js/pages/history.js): виконані
+//                          й скасовані задачі (list = "archive") за
+//                          період. Період — текстом, без inline-
+//                          клавіатури (бот більше ніде її не
+//                          використовує, зайва складність для однієї
+//                          команди): без аргументу — минулий тиждень
+//                          (найчастіший запит), "тиждень" — поточний,
+//                          "місяць" — цей місяць, "весь" — без
+//                          обмежень, чи довільний
+//                          "РРРР-ММ-ДД РРРР-ММ-ДД".
 //
 // Довірений сервер — service_role key (повний доступ в обхід RLS,
 // бо на момент запиту немає Supabase-сесії користувача, лише
@@ -36,6 +47,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callGroqJSON } from "../_shared/groqChat.ts";
+import { addDays, kyivDateOf, mondayOf, monthRange, todayInKyiv } from "../_shared/dateHelpers.ts";
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 const TELEGRAM_WEBHOOK_SECRET = Deno.env.get("TELEGRAM_WEBHOOK_SECRET") ?? "";
@@ -57,11 +69,20 @@ const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// Telegram обмежує повідомлення 4096 символами й мовчки відхиляє все,
+// що довше — раніше тут завжди були короткі підтвердження, але
+// /report (нижче) може перелічити чимало задач одразу.
+const MAX_MESSAGE_LENGTH = 3800;
+
 async function sendMessage(chatId: number, text: string) {
+  const body = text.length > MAX_MESSAGE_LENGTH
+    ? `${text.slice(0, MAX_MESSAGE_LENGTH)}\n\n… список скорочено, повний — у застосунку.`
+    : text;
+
   await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text }),
+    body: JSON.stringify({ chat_id: chatId, text: body }),
   });
 }
 
@@ -179,7 +200,88 @@ async function handleStart(chatId: number, code: string | undefined, from: Recor
 
   if (updateError) throw updateError;
 
-  await sendMessage(chatId, "✅ Прив'язано! Тепер надсилай сюди текст або голосове повідомлення — додам задачу у «Вхідні».");
+  await sendMessage(chatId, "✅ Прив'язано! Тепер надсилай сюди текст або голосове повідомлення — додам задачу у «Вхідні». /report — звіт по «Історії».");
+}
+
+type ReportRange = { from: string | null; to: string | null; label: string };
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Той самий набір періодів, що й пресети на сторінці «Історія»
+// (history.js) — без аргументу за замовчуванням минулий тиждень,
+// бо це найчастіший запит користувача.
+function parseReportRange(args: string[]): ReportRange {
+  const today = todayInKyiv();
+
+  if (args[0] === "тиждень") {
+    const from = mondayOf(today);
+    return { from, to: addDays(from, 6), label: "поточний тиждень" };
+  }
+  if (args[0] === "місяць") {
+    const { from, to } = monthRange(today);
+    return { from, to, label: "цей місяць" };
+  }
+  if (args[0] === "весь") {
+    return { from: null, to: null, label: "увесь час" };
+  }
+  if (args[0] && ISO_DATE.test(args[0]) && args[1] && ISO_DATE.test(args[1])) {
+    return { from: args[0], to: args[1], label: `${args[0]} — ${args[1]}` };
+  }
+
+  // Без аргументу (чи невідомий аргумент) — минулий тиждень.
+  const from = addDays(mondayOf(today), -7);
+  return { from, to: addDays(from, 6), label: "минулий тиждень" };
+}
+
+type ArchivedTask = {
+  title: string;
+  completed: boolean;
+  status: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  updated_at: string;
+};
+
+// Той самий звіт, що й «Історія» в застосунку (js/pages/history.js)
+// — filtered за completed_at/cancelled_at (не updated_at, який
+// перезаписує вечірнє автоперенесення), лише текстом замість
+// інтерактивного списку.
+async function handleReport(chatId: number, userId: string, argsText: string) {
+  const range = parseReportRange(argsText.trim().split(/\s+/).filter(Boolean));
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("title, completed, status, completed_at, cancelled_at, updated_at")
+    .eq("user_id", userId)
+    .eq("list", "archive")
+    .is("deleted_at", null);
+
+  if (error) {
+    console.error(error);
+    await sendMessage(chatId, "Не вдалося сформувати звіт. Спробуй ще раз.");
+    return;
+  }
+
+  const tasks = (data ?? []) as ArchivedTask[];
+  const filtered = tasks.filter((task) => {
+    const at = kyivDateOf(task.completed_at || task.cancelled_at || task.updated_at);
+    if (range.from && at < range.from) return false;
+    if (range.to && at > range.to) return false;
+    return true;
+  });
+
+  const done = filtered.filter((t) => t.completed);
+  const cancelled = filtered.filter((t) => !t.completed && t.status === "cancelled");
+
+  const listOf = (tasks: ArchivedTask[]) =>
+    tasks.length > 0 ? tasks.map((t) => `• ${t.title}`).join("\n") : "Нічого нема.";
+
+  await sendMessage(
+    chatId,
+    `📊 Звіт за ${range.label}:\n\n` +
+      `✅ Виконано (${done.length}):\n${listOf(done)}\n\n` +
+      `🚫 Скасовано (${cancelled.length}):\n${listOf(cancelled)}\n\n` +
+      `Інші періоди: /report тиждень · /report місяць · /report весь · /report РРРР-ММ-ДД РРРР-ММ-ДД`
+  );
 }
 
 async function handleMessage(message: Record<string, unknown>) {
@@ -196,6 +298,11 @@ async function handleMessage(message: Record<string, unknown>) {
   const userId = await findUserIdByChatId(chatId);
   if (!userId) {
     await sendMessage(chatId, "Спершу прив'яжи акаунт: сторінка «Інтеграції» в Mini GTD UA → «Згенерувати код прив'язки» → сюди командою /start <код>.");
+    return;
+  }
+
+  if (text.startsWith("/report")) {
+    await handleReport(chatId, userId, text.slice("/report".length));
     return;
   }
 

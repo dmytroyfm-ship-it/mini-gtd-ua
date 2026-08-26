@@ -429,6 +429,18 @@ Telegram, тоді POST на `WHISPER_API_BASE_URL` (дефолт — Groq,
 `service_role`-клієнтом. У відповідь — `sendMessage` з
 підтвердженням і списком підзадач, якщо вони є.
 
+**Команда `/report [період]`** — той самий звіт, що й сторінка
+«Історія» (`js/pages/history.js`), текстом у чат: без аргументу —
+минулий тиждень (найчастіший запит), `тиждень` — поточний, `місяць`
+— цей місяць, `весь` — без обмежень, чи довільний `РРРР-ММ-ДД
+РРРР-ММ-ДД`. Без inline-клавіатури (бот більше ніде її не
+використовує — зайва складність заради однієї команди). Дати —
+`_shared/dateHelpers.ts` (спільний з `daily-reminder`: `todayInKyiv`,
+`mondayOf`, `monthRange` тощо, усе за київським часом, рядками
+`"YYYY-MM-DD"`, щоб порівнювати лексикографічно, без плутанини з UTC
+сервера); фільтрує за `completed_at`/`cancelled_at` (не `updated_at`
+— той перезаписало б вечірнє автоперенесення).
+
 **Захист вебхука** — `TELEGRAM_WEBHOOK_SECRET`: Telegram підставляє
 цей самий секрет у заголовок `X-Telegram-Bot-Api-Secret-Token`
 кожного запиту (вказується один раз при реєстрації вебхука); функція
@@ -517,12 +529,15 @@ Telegram-бота. Кроки, де фігурують секрети чи Teleg
 Розклад — [pg_cron](https://github.com/citusdata/pg_cron) +
 [pg_net](https://github.com/supabase/pg_net) (обидва — стандартні
 розширення Postgres у Supabase, увімкнені прямо в SQL-міграції
-нижче): щодня о 06:00 UTC (= 09:00 в Україні влітку, 08:00 взимку —
-pg_cron не знає про літній/зимовий час, різниця в годину визнана
-прийнятною для нагадування) `pg_cron` виконує `net.http_post()` на
-адресу функції. Захист від чужих запитів — `CRON_SECRET` у
-заголовку `x-cron-secret`, той самий принцип, що й
-`TELEGRAM_WEBHOOK_SECRET` у боті.
+нижче): будні (пн-пт, `1-5` у полі дня тижня — користувач не працює
+в суботу/неділю, нагадування в ці дні зайве;
+[20260826040000_daily_reminder_weekdays_only.sql](../supabase/migrations/20260826040000_daily_reminder_weekdays_only.sql)
+перепланувало наявне завдання) о 06:00 UTC (= 09:00 в Україні
+влітку, 08:00 взимку — pg_cron не знає про літній/зимовий час,
+різниця в годину визнана прийнятною для нагадування) `pg_cron`
+виконує `net.http_post()` на адресу функції. Захист від чужих
+запитів — `CRON_SECRET` у заголовку `x-cron-secret`, той самий
+принцип, що й `TELEGRAM_WEBHOOK_SECRET` у боті.
 
 **Розгортання (ручні кроки — секрети й SQL я не бачу й не
 виконую):**
@@ -793,14 +808,18 @@ GTD додаток/
 │   ├── config.toml               — потрібен лише для деплою Edge Functions нижче
 │   ├── functions/
 │   │   ├── _shared/
-│   │   │   └── groqChat.ts        — спільний виклик Groq chat completions (JSON-
-│   │   │                         режим), для ai-assist/ і feed-webhook/
+│   │   │   ├── groqChat.ts        — спільний виклик Groq chat completions (JSON-
+│   │   │   │                     режим), для ai-assist/ і feed-webhook/
+│   │   │   └── dateHelpers.ts      — дати за київським часом (todayInKyiv,
+│   │   │                         mondayOf, monthRange тощо), для daily-reminder/
+│   │   │                         і telegram-webhook/ (/report)
 │   │   ├── telegram-webhook/
 │   │   │   └── index.ts          — приймає Update від Telegram, створює задачу
-│   │   │                         (текст чи Whisper-транскрипція голосового),
-│   │   │                         відповідає в чат (Deno, service_role key)
+│   │   │                         (текст чи Whisper-транскрипція голосового) чи
+│   │   │                         звіт по «Історії» (/report), відповідає в чат
+│   │   │                         (Deno, service_role key)
 │   │   ├── daily-reminder/
-│   │   │   └── index.ts          — щодня о 9:00 (pg_cron) перевіряє прострочені
+│   │   │   └── index.ts          — будні о 9:00 (pg_cron) перевіряє прострочені
 │   │   │                         задачі й задачі на сьогодні, шле нагадування
 │   │   ├── ai-assist/
 │   │   │   └── index.ts          — проксі до Groq: розбити задачу на кроки /
@@ -841,8 +860,11 @@ GTD додаток/
 │       │                          — tasks.recurrence_anchor_day (виконано)
 │       ├── 20260826020000_add_completed_cancelled_timestamps.sql
 │       │                          — completed_at/cancelled_at (потребує виконання)
-│       └── 20260826030000_schedule_daily_archival.sql
-│                                  — pg_cron: автоперенесення в «Історію» о 22:30
+│       ├── 20260826030000_schedule_daily_archival.sql
+│       │                          — pg_cron: автоперенесення в «Історію» о 22:30
+│       │                          (потребує виконання)
+│       └── 20260826040000_daily_reminder_weekdays_only.sql
+│                                  — daily-reminder лише в будні пн-пт
 │                                  (потребує виконання)
 ├── docs/
 │   ├── PRD.md                    — опис продукту
