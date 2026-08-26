@@ -78,10 +78,7 @@ export function mountNav(root) {
     </div>
 
     <div class="nav__panel" id="nav-menu">
-      <a href="/inbox" data-link class="nav__brand">
-        <span class="nav__brand-mark" aria-hidden="true">✕</span>
-        Mini GTD
-      </a>
+      <a href="/inbox" data-link class="nav__brand">Mini GTD</a>
 
       <ul class="nav__links">
         ${routes

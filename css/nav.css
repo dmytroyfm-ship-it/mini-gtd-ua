@@ -73,9 +73,7 @@
 }
 
 .nav__brand {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
+  display: block;
   margin: 0 0.35rem 1.5rem;
   font-family: var(--font-display);
   font-weight: 700;
@@ -84,20 +82,6 @@
   text-decoration: none;
   letter-spacing: -0.01em;
   white-space: nowrap;
-}
-
-.nav__brand-mark {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  background: var(--accent-gradient);
-  color: var(--ink);
-  font-size: 0.95rem;
-  font-weight: 700;
 }
 
 .nav__links {
