@@ -224,14 +224,16 @@
   background: var(--accent-soft);
 }
 
-/* Слот меню акаунта (AccountMenu.js) — завжди по правому краю бару,
-   і на десктопі (де його штовхає вправо auto-margin .nav__panel),
-   і на мобільному (де .nav__panel стає position: fixed і випадає з
-   потоку — власний margin-left: auto тут гарантує той самий
-   правий край незалежно від стану .nav__panel). */
+/* Слот меню акаунта (AccountMenu.js) — на десктопі його штовхає
+   вправо auto-margin .nav__panel (штовхає ЦІЛУ групу після себе —
+   розділювач + лупу + цей слот — як один блок, не власний
+   margin-left: auto тут: два незалежні auto-margin на одному ряду
+   CSS ділить порівну між обома, це й давало два розтягнуті проміжки
+   замість одного). На мобільному .nav__panel випадає з потоку
+   (position: fixed) — там штовхає замість нього .nav__search
+   (власний margin-left: auto лише в медіа-запиті нижче). */
 .nav__account-slot {
   flex: 0 0 auto;
-  margin-left: auto;
   padding-left: 0.75rem;
   border-left: 1px solid var(--line);
 }
@@ -290,6 +292,13 @@
      правого краю поруч з іконкою акаунта. */
   .nav__search {
     margin-left: auto;
+  }
+
+  /* Розділювач перед лупою мав сенс поруч із посиланнями — на
+     мобільному вони сховані в бургер-меню, тож тут він просто зайва
+     риска біля бренду. */
+  .nav__divider--search {
+    display: none;
   }
 
   .nav__link {

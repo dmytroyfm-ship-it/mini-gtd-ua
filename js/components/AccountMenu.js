@@ -47,8 +47,8 @@ export function renderAccountMenu() {
       <button type="button" class="account-menu__photo-trigger">Змінити фото</button>
       <input type="file" class="account-menu__photo-input" accept="image/*" hidden />
       <a href="/sources" data-link class="account-menu__link">Джерела</a>
-      <a href="/trash" data-link class="account-menu__link">Кошик</a>
       <a href="/integrations" data-link class="account-menu__link">Інтеграції</a>
+      <a href="/trash" data-link class="account-menu__link">Кошик</a>
       <button type="button" class="account-menu__logout">Вийти</button>
     </div>
   `;
