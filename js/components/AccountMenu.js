@@ -1,9 +1,11 @@
 // Меню акаунта в навігації: аватар-кнопка, що відкриває панель з
-// фото, ім'ям (можна редагувати), поштою, посиланням на
-// «Інтеграції» й кнопкою «Вийти». Раніше пошта й «Вийти» висіли
-// прямо в барі навігації — перенесено сюди, щоб не займати місце
-// в головному меню (PROJECT_RULES, п.6 — сама лише показує стан і
-// віддає дії в authStore.js, рішень про автентифікацію не приймає).
+// фото, ім'ям (можна редагувати), поштою, посиланнями на «Джерела»/
+// «Кошик»/«Інтеграції» й кнопкою «Вийти». Раніше пошта й «Вийти»
+// висіли прямо в барі навігації, а «Джерела»/«Кошик» — окремими
+// вкладками головного меню — усе перенесено сюди, щоб не займати
+// місце в головному меню (PROJECT_RULES, п.6 — сама лише показує
+// стан і віддає дії в authStore.js, рішень про автентифікацію не
+// приймає).
 
 import { navigate } from "../router.js";
 import { getSession, signOut, updateDisplayName, uploadAvatar, subscribe } from "../store/authStore.js";
@@ -44,6 +46,8 @@ export function renderAccountMenu() {
       <div class="account-menu__header"></div>
       <button type="button" class="account-menu__photo-trigger">Змінити фото</button>
       <input type="file" class="account-menu__photo-input" accept="image/*" hidden />
+      <a href="/sources" data-link class="account-menu__link">Джерела</a>
+      <a href="/trash" data-link class="account-menu__link">Кошик</a>
       <a href="/integrations" data-link class="account-menu__link">Інтеграції</a>
       <button type="button" class="account-menu__logout">Вийти</button>
     </div>
@@ -54,7 +58,7 @@ export function renderAccountMenu() {
   const header = wrapper.querySelector(".account-menu__header");
   const photoTrigger = wrapper.querySelector(".account-menu__photo-trigger");
   const photoInput = wrapper.querySelector(".account-menu__photo-input");
-  const link = wrapper.querySelector(".account-menu__link");
+  const links = wrapper.querySelectorAll(".account-menu__link");
   const logoutButton = wrapper.querySelector(".account-menu__logout");
 
   function closePanel() {
@@ -195,7 +199,7 @@ export function renderAccountMenu() {
     }
   });
 
-  link.addEventListener("click", closePanel);
+  links.forEach((link) => link.addEventListener("click", closePanel));
 
   logoutButton.addEventListener("click", async () => {
     closePanel();

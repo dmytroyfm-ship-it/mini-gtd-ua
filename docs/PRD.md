@@ -1,4 +1,4 @@
-# PRD — Mini GTD UA
+# PRD — Mini GTD
 
 ## Що це
 

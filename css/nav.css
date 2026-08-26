@@ -62,8 +62,47 @@
 .nav__panel {
   display: flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.6rem;
   margin: 0 0 0 auto;
+}
+
+/* Тонка вертикальна риска-розділювач — той самий прийом, що й
+   border-left у .nav__account-slot нижче, лише як окремий елемент
+   (перед .nav__account-slot border на сусідньому елементі досить,
+   бо він завжди по правому краю; тут потрібно два конкретні місця
+   в середині рядка — після бренду й після «Вхідні» — тож зручніше
+   окремим <span>/<li>, не border). */
+.nav__divider {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 20px;
+  background: var(--line);
+}
+
+.nav__search {
+  flex: 0 0 auto;
+}
+
+.nav__search-input {
+  width: 150px;
+  padding: 0.4rem 0.7rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  transition: width 0.2s ease, border-color 0.15s ease;
+}
+
+.nav__search-input::placeholder {
+  color: var(--ink-dim);
+}
+
+.nav__search-input:focus {
+  outline: none;
+  border-color: var(--accent-dim);
+  width: 190px;
 }
 
 .nav__links {
@@ -146,6 +185,21 @@
     flex-direction: column;
     align-items: stretch;
     gap: 0.15rem;
+  }
+
+  /* Вертикальна риска всередині панелі (після «Вхідні») стає
+     горизонтальною смугою у висувній панелі (тепер вона в колонку) —
+     той самий розділювач, інша орієнтація під новий контекст. Той,
+     що біля бренду (.nav__bar > .nav__divider, поза .nav__panel),
+     лишається в згорнутому барі як був — це правило його не чіпає. */
+  .nav__panel .nav__divider {
+    width: 100%;
+    height: 1px;
+    margin: 0.5rem 0;
+  }
+
+  .nav__search-input {
+    width: 100%;
   }
 
   .nav__link {

@@ -101,6 +101,31 @@ export async function getAllTasks() {
   return data;
 }
 
+// Пошук за словом (у назві чи нотатці) чи тегом — фільтрація на
+// клієнті після одного запиту (для особистого використання обсяг не
+// той, щоб виправдовувати складний ILIKE/OR-фільтр на PostgREST, і
+// це заразом безпечніше — жодного ризику зламати фільтр спецсимволом
+// у запиті). Шукає по всіх активних списках одразу, включно з
+// «Історією» — «чи я робив це минулого місяця» теж корисний запит.
+export async function searchTasks(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return data.filter((task) => {
+    if (task.title.toLowerCase().includes(q)) return true;
+    if ((task.note || "").toLowerCase().includes(q)) return true;
+    return (task.tags || []).some((tag) => tag.toLowerCase().includes(q));
+  });
+}
+
 // Задачі статусу "В очікуванні" незалежно від їхнього list —
 // показуються окремим розділом на сторінці «Колись» (someday.js),
 // поруч зі списком someday, але не змішані з ним (окремий запит,

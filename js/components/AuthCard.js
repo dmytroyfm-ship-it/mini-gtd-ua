@@ -21,7 +21,7 @@ export function renderAuthCard(onSignIn, initialError) {
   const card = document.createElement("div");
   card.className = "auth-card";
   card.innerHTML = `
-    <h1 class="auth-card__title">Mini GTD UA</h1>
+    <h1 class="auth-card__title">Mini GTD</h1>
     <p class="auth-card__subtitle">Увійдіть, щоб почати збирати ідеї та задачі.</p>
     <button type="button" class="auth-card__google">
       ${GOOGLE_ICON_SVG}

@@ -1,0 +1,49 @@
+/* Сторінка «Пошук» (/search, js/pages/search.js). Список результатів
+   — ті самі TaskCard.js/TaskList.js, що й скрізь; тут лише форма
+   пошуку зверху. Кольори — лише з токенів у css/style.css. */
+
+.search-page__form {
+  margin-top: 1.25rem;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.search-page__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.65rem 0.85rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+}
+
+.search-page__input::placeholder {
+  color: var(--ink-dim);
+}
+
+.search-page__input:focus {
+  outline: none;
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.search-page__submit {
+  flex: 0 0 auto;
+  padding: 0.6rem 1.15rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.search-page__submit:hover {
+  filter: brightness(1.08);
+}

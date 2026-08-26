@@ -11,6 +11,13 @@
   border: 1px solid var(--line);
   border-radius: 16px;
   box-shadow: var(--shadow-card);
+  /* Кожна зміна в задачі (галочка, статус, дедлайн...) перемальовує
+     картку заново з нуля (PROJECT_RULES-патерн "оновити стор →
+     перечитати список") — без цього нова картка просто миттєво
+     з'являлась замість старої, різким "стрибком". rise — той самий
+     keyframe, що й у порожньому стані TaskList.js/page-переходах
+     (css/style.css). */
+  animation: rise 0.25s ease-out both;
 }
 
 .task-card--completed {

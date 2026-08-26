@@ -1,4 +1,4 @@
-// Webhook Telegram-бота Mini GTD UA.
+// Webhook Telegram-бота Mini GTD.
 //
 // Приймає POST від Telegram (Update-об'єкт) на кожне повідомлення
 // боту й:
@@ -185,7 +185,7 @@ async function handleStart(chatId: number, code: string | undefined, from: Recor
   if (!code) {
     await sendMessage(
       chatId,
-      "Привіт! Щоб прив'язати акаунт — відкрий сторінку «Інтеграції» в Mini GTD UA, натисни «Згенерувати код прив'язки» й перейди за посиланням (або встав код сюди командою /start <код>)."
+      "Привіт! Щоб прив'язати акаунт — відкрий сторінку «Інтеграції» в Mini GTD, натисни «Згенерувати код прив'язки» й перейди за посиланням (або встав код сюди командою /start <код>)."
     );
     return;
   }
@@ -199,7 +199,7 @@ async function handleStart(chatId: number, code: string | undefined, from: Recor
   if (error) throw error;
 
   if (!data || !data.link_code_expires_at || new Date(data.link_code_expires_at as string) < new Date()) {
-    await sendMessage(chatId, "Код недійсний або застарів. Згенеруй новий на сторінці «Інтеграції» в Mini GTD UA.");
+    await sendMessage(chatId, "Код недійсний або застарів. Згенеруй новий на сторінці «Інтеграції» в Mini GTD.");
     return;
   }
 
@@ -374,7 +374,7 @@ async function handleMessage(message: Record<string, unknown>) {
 
   const userId = await findUserIdByChatId(chatId);
   if (!userId) {
-    await sendMessage(chatId, "Спершу прив'яжи акаунт: сторінка «Інтеграції» в Mini GTD UA → «Згенерувати код прив'язки» → сюди командою /start <код>.");
+    await sendMessage(chatId, "Спершу прив'яжи акаунт: сторінка «Інтеграції» в Mini GTD → «Згенерувати код прив'язки» → сюди командою /start <код>.");
     return;
   }
 

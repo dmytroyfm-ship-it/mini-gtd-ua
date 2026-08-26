@@ -1,4 +1,4 @@
-// Проксі до Groq LLM API для двох AI-фіч Mini GTD UA:
+// Проксі до Groq LLM API для двох AI-фіч Mini GTD:
 //   type: "breakdown"  — розбити задачу на кроки-підзадачі
 //                        (js/components/TaskCard.js, кнопка
 //                        «✨ Розбити на кроки»)

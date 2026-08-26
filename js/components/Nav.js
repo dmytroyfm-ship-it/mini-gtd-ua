@@ -3,10 +3,13 @@
 // (AccountMenu.js — фото, ім'я, «Інтеграції», «Вийти»). Список
 // маршрутів бере з router.js; сама рішень про автентифікацію не
 // приймає (PROJECT_RULES, п.6) — це вже робить AccountMenu.js/
-// authStore.js.
+// authStore.js. Поле пошуку тут же — при відправці форми просто
+// передає запит на /search (js/pages/search.js) через
+// setPendingSearchQuery(), маршрутизація query-рядків не підтримує.
 
-import { getRoutes } from "../router.js";
+import { getRoutes, navigate } from "../router.js";
 import { renderAccountMenu } from "./AccountMenu.js";
+import { setPendingSearchQuery } from "../pages/search.js";
 
 const AUTH_PATH = "/auth";
 
@@ -26,8 +29,17 @@ export function mountNav(root) {
       <button type="button" class="nav__burger" aria-label="Відкрити меню" aria-expanded="false" aria-controls="nav-menu">
         <span aria-hidden="true">☰</span>
       </button>
-      <a href="/inbox" data-link class="nav__brand">Mini GTD UA</a>
+      <a href="/inbox" data-link class="nav__brand">Mini GTD</a>
+      <span class="nav__divider" aria-hidden="true"></span>
       <div class="nav__panel" id="nav-menu">
+        <form class="nav__search" role="search">
+          <input
+            type="search"
+            class="nav__search-input"
+            placeholder="Пошук…"
+            aria-label="Пошук задач за словом чи тегом"
+          />
+        </form>
         <ul class="nav__links">
           ${routes
             .map(
@@ -35,6 +47,7 @@ export function mountNav(root) {
             <li>
               <a href="${route.path}" data-link data-path="${route.path}" class="nav__link">${route.title}</a>
             </li>
+            ${route.path === "/inbox" ? `<li class="nav__divider" aria-hidden="true"></li>` : ""}
           `
             )
             .join("")}
@@ -57,6 +70,19 @@ export function mountNav(root) {
   overlayEl.addEventListener("click", closeMenu);
   panelEl.addEventListener("click", (event) => {
     if (event.target.closest("a")) closeMenu();
+  });
+
+  const searchForm = root.querySelector(".nav__search");
+  const searchInput = root.querySelector(".nav__search-input");
+  searchForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const query = searchInput.value.trim();
+    if (!query) return;
+
+    setPendingSearchQuery(query);
+    searchInput.value = "";
+    closeMenu(); // на мобільному поле пошуку в тій самій висувній панелі, що й посилання
+    navigate("/search").catch((err) => console.error("Помилка переходу:", err));
   });
 }
 

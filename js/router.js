@@ -9,6 +9,7 @@ import { renderNext } from "./pages/next.js";
 import { renderReadWatch } from "./pages/readWatch.js";
 import { renderSomeday } from "./pages/someday.js";
 import { renderHistory } from "./pages/history.js";
+import { renderSearch } from "./pages/search.js";
 import { renderBoard } from "./pages/board.js";
 import { renderTaskDetail } from "./pages/taskDetail.js";
 import { renderTrash } from "./pages/trash.js";
@@ -30,14 +31,18 @@ const ROUTES = [
   { path: "/list/read_watch", title: "Читати / Дивитись", render: renderReadWatch, protected: true },
   { path: "/list/someday", title: "Колись", render: renderSomeday, protected: true },
   { path: "/history", title: "Історія", render: renderHistory, protected: true },
-  { path: "/sources", title: "Джерела", render: renderSources, protected: true },
   { path: "/feed", title: "Стрічка", render: renderFeed, protected: true },
-  { path: "/trash", title: "Кошик", render: renderTrash, protected: true },
   // hideFromNav — маршрут доступний (посилання, кнопки), але не
   // захаращує головне меню; потрапити на нього можна лише з меню
   // акаунта (AccountMenu.js) — той самий принцип, що вже є для
-  // динамічних маршрутів (/task/:id) нижче в getRoutes().
+  // динамічних маршрутів (/task/:id) нижче в getRoutes(). «Джерела»
+  // й «Кошик» — за проханням користувача, менше вкладок на видноті.
+  { path: "/sources", title: "Джерела", render: renderSources, protected: true, hideFromNav: true },
+  { path: "/trash", title: "Кошик", render: renderTrash, protected: true, hideFromNav: true },
   { path: "/integrations", title: "Інтеграції", render: renderIntegrations, protected: true, hideFromNav: true },
+  // Потрапити можна лише через поле пошуку в Nav.js (setPendingSearchQuery
+  // + navigate) — не окрема вкладка меню.
+  { path: "/search", title: "Пошук", render: renderSearch, protected: true, hideFromNav: true },
 ];
 
 let pageRoot = null;
@@ -118,7 +123,7 @@ async function renderCurrentRoute() {
     return;
   }
 
-  document.title = `${route.title} — Mini GTD UA`;
+  document.title = `${route.title} — Mini GTD`;
   pageRoot.className = ["page", route.bare && "page--auth", route.wide && "page--wide"]
     .filter(Boolean)
     .join(" ");
