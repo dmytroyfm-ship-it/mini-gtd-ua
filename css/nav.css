@@ -148,10 +148,18 @@
 }
 
 /* --- Пошук --- */
-
-.nav__search {
-  position: relative;
-}
+/* Кнопка-лупа лишається звичайним рядком бічної панелі (як пункти
+   меню), а САМЕ ПОЛЕ (.nav__search-panel) — окремий fixed-блок поза
+   .nav__panel, по центру екрана (командна панель), з .nav__search-
+   backdrop під ним. Причина: .nav__panel має overflow-y: auto
+   (прокрутка довгого списку пунктів) — блок, вкладений усередину
+   неї (як було раніше, absolute праворуч від панелі), обрізався б
+   цим самим overflow, щойно виходив за межі 240px ширини —
+   користувач і побачив обрізаний текст підказок. Fixed-позиціонування
+   поза .nav__panel геть уникає цієї проблеми, і той самий блок
+   однаково добре виглядає на будь-якій ширині екрана — окремих
+   правил на мобільний в'юпорт більше не треба (порівняй із
+   попередньою версією файлу). */
 
 .nav__search-toggle {
   display: flex;
@@ -187,41 +195,68 @@
   text-overflow: ellipsis;
 }
 
-/* Випадна панель — картка, що зʼявляється по кліку, ПРАВОРУЧ від
-   бічної навігації (не знизу — там мало б місця для панелі так
-   близько до низу екрана). [hidden] override — сама панель має
-   authored display (flex), інакше [hidden] мовчки програвав би
-   йому (той самий баг, що вже був із .board--hidden й іншими). */
-.nav__search-panel {
-  position: absolute;
-  left: calc(100% + 0.75rem);
-  bottom: 0;
-  z-index: 35;
-  width: min(280px, calc(100vw - var(--sidebar-width) - 2.5rem));
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.6rem;
-  background: var(--bg-soft);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  box-shadow: var(--shadow-card);
+/* Темна підкладка на весь екран — той самий --overlay, що й у
+   мобільного бекдропу висувної панелі (.nav__overlay), але для
+   пошуку працює на БУДЬ-ЯКІЙ ширині екрана, не лише мобільній:
+   клікабельна ділянка "поза панеллю" для закриття, і водночас
+   візуально відділяє командну панель від решти застосунку. */
+.nav__search-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: var(--overlay);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
 }
 
-.nav__search-panel[hidden] {
-  display: none;
+.nav__search-backdrop.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 0.2s ease;
+}
+
+.nav__search-panel {
+  position: fixed;
+  top: 14vh;
+  left: 50%;
+  z-index: 60;
+  width: min(560px, calc(100vw - 2.5rem));
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow-card);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, -8px) scale(0.98);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0.2s;
+}
+
+.nav__search-panel.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate(-50%, 0) scale(1);
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .nav__search-input {
   width: 100%;
   box-sizing: border-box;
-  padding: 0.45rem 0.7rem;
+  padding: 0.65rem 0.85rem;
   background: var(--bg-raised);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 0.87rem;
+  font-size: 0.95rem;
 }
 
 .nav__search-input::placeholder {
@@ -237,7 +272,7 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 260px;
+  max-height: min(360px, calc(80vh - 14vh - 4rem));
   overflow-y: auto;
 }
 
@@ -247,11 +282,11 @@
 
 .nav__search-suggestion {
   display: block;
-  padding: 0.5rem 0.6rem;
+  padding: 0.55rem 0.7rem;
   border-radius: 8px;
   color: var(--ink);
   text-decoration: none;
-  font-size: 0.87rem;
+  font-size: 0.9rem;
   line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -304,17 +339,6 @@
 
   .nav__panel.is-open {
     transform: translateX(0);
-  }
-
-  /* Випадна панель пошуку праворуч від бічної навігації мала сенс на
-     десктопі — тут навігація сама виїжджає зверху на весь екран,
-     тож панель ховаємо вниз, під кнопкою, на всю доступну ширину. */
-  .nav__search-panel {
-    left: 0;
-    right: 0;
-    bottom: auto;
-    top: calc(100% + 0.4rem);
-    width: auto;
   }
 
   .nav__overlay {

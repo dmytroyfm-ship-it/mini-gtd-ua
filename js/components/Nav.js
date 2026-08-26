@@ -12,16 +12,25 @@
 // флекс-елемент зліва (sticky, на всю висоту), #page-root займає
 // решту ширини. На мобільному .nav__panel випадає з потоку
 // (position: fixed, слайд-панель) — там і живе .nav__account-slot
-// (внизу панелі) та .nav__search (над ним).
+// (внизу панелі) та кнопка-лупа пошуку (над ним).
 //
 // Пошук — рядок-кнопка з лупою всередині панелі, під розділювачем
-// над акаунтом; клік розкриває панель з полем праворуч від бічної
-// навігації (не знизу — там мало б місця). Під час набору (з
-// дебаунсом) — випадний список до SUGGESTION_LIMIT збігів
-// (searchTasks() з taskStore.js), клік по одному одразу відкриває
-// задачу; Enter/сабміт форми — повний список на /search
-// (js/pages/search.js), запит туди передається через
-// setPendingSearchQuery() — маршрутизація query-рядків не підтримує.
+// над акаунтом; клік розкриває САМЕ ПОЛЕ окремим виринаючим блоком
+// по центру екрана (командна панель), а не всередині бічної
+// навігації — .nav__panel має overflow-y: auto (прокрутка довгого
+// списку пунктів), і блок, вкладений у неї, обрізався б цим самим
+// overflow, щойно виходив за межі 240px ширини панелі (саме так
+// користувач і побачив обрізаний текст). .nav__search-backdrop/
+// .nav__search-panel — прямі діти кореня .nav (як .nav__overlay),
+// не .nav__panel, — і fixed-позиціонування геть уникає проблеми
+// незалежно від ширини екрана; той самий блок однаково добре
+// виглядає і на десктопі, і на мобільному, окремих правил на
+// в'юпорт більше не треба. Під час набору (з дебаунсом) — випадний
+// список до SUGGESTION_LIMIT збігів (searchTasks() з taskStore.js),
+// клік по одному одразу відкриває задачу; Enter/сабміт форми —
+// повний список на /search (js/pages/search.js), запит туди
+// передається через setPendingSearchQuery() — маршрутизація
+// query-рядків не підтримує.
 
 import { getRoutes, navigate } from "../router.js";
 import { renderAccountMenu } from "./AccountMenu.js";
@@ -101,28 +110,28 @@ export function mountNav(root) {
 
       <span class="nav__divider" aria-hidden="true"></span>
 
-      <div class="nav__search">
-        <button type="button" class="nav__search-toggle" aria-expanded="false" aria-controls="nav-search-panel">
-          ${SEARCH_ICON_SVG}
-          <span class="nav__search-toggle-label">Пошук</span>
-        </button>
-        <div class="nav__search-panel" id="nav-search-panel" hidden>
-          <form class="nav__search-form" role="search">
-            <input
-              type="search"
-              class="nav__search-input"
-              placeholder="Пошук…"
-              aria-label="Пошук задач за словом чи тегом"
-              autocomplete="off"
-            />
-          </form>
-          <ul class="nav__search-suggestions" hidden></ul>
-        </div>
-      </div>
+      <button type="button" class="nav__search-toggle" aria-expanded="false" aria-controls="nav-search-panel">
+        ${SEARCH_ICON_SVG}
+        <span class="nav__search-toggle-label">Пошук</span>
+      </button>
 
       <div class="nav__account-slot"></div>
     </div>
     <div class="nav__overlay"></div>
+
+    <div class="nav__search-backdrop"></div>
+    <div class="nav__search-panel" id="nav-search-panel">
+      <form class="nav__search-form" role="search">
+        <input
+          type="search"
+          class="nav__search-input"
+          placeholder="Пошук…"
+          aria-label="Пошук задач за словом чи тегом"
+          autocomplete="off"
+        />
+      </form>
+      <ul class="nav__search-suggestions" hidden></ul>
+    </div>
   `;
 
   panelEl = root.querySelector(".nav__panel");
@@ -142,13 +151,15 @@ export function mountNav(root) {
   wireSearch(root);
 }
 
-// Кнопка-лупа: клік розкриває панель з полем праворуч від бічної
-// навігації; під час набору (з дебаунсом — не смикати базу на кожну
-// літеру) — випадний список до SUGGESTION_LIMIT збігів, клік по
-// одному одразу відкриває задачу. Enter/сабміт форми — повний
+// Кнопка-лупа: клік розкриває поле окремою виринаючою панеллю по
+// центру екрана (fixed, поза бічною навігацією — коментар на
+// початку файлу); під час набору (з дебаунсом — не смикати базу на
+// кожну літеру) — випадний список до SUGGESTION_LIMIT збігів, клік
+// по одному одразу відкриває задачу. Enter/сабміт форми — повний
 // список на /search.
 function wireSearch(root) {
   const toggle = root.querySelector(".nav__search-toggle");
+  const backdrop = root.querySelector(".nav__search-backdrop");
   const panel = root.querySelector(".nav__search-panel");
   const form = root.querySelector(".nav__search-form");
   const input = root.querySelector(".nav__search-input");
@@ -156,6 +167,7 @@ function wireSearch(root) {
 
   let debounceTimer = null;
   let requestId = 0; // застаріла відповідь (повільніший попередній запит) не має перезаписати свіжішу
+  let isOpen = false;
 
   function clearSuggestions() {
     suggestionsEl.hidden = true;
@@ -163,13 +175,17 @@ function wireSearch(root) {
   }
 
   function openSearch() {
-    panel.hidden = false;
+    isOpen = true;
+    backdrop.classList.add("is-open");
+    panel.classList.add("is-open");
     toggle.setAttribute("aria-expanded", "true");
     input.focus();
   }
 
   function closeSearch() {
-    panel.hidden = true;
+    isOpen = false;
+    backdrop.classList.remove("is-open");
+    panel.classList.remove("is-open");
     toggle.setAttribute("aria-expanded", "false");
     clearSuggestions();
     input.value = "";
@@ -196,8 +212,8 @@ function wireSearch(root) {
   }
 
   toggle.addEventListener("click", () => {
-    if (panel.hidden) openSearch();
-    else closeSearch();
+    if (isOpen) closeSearch();
+    else openSearch();
   });
 
   input.addEventListener("input", () => {
@@ -235,11 +251,14 @@ function wireSearch(root) {
     navigate("/search").catch((err) => console.error("Помилка переходу:", err));
   });
 
-  document.addEventListener("click", (event) => {
-    if (!panel.hidden && !event.target.closest(".nav__search")) closeSearch();
-  });
+  // Бекдроп на весь екран — вище за все інше (z-index), тож клік
+  // будь-де поза панеллю (включно з рештою бічної навігації) спершу
+  // влучає саме в нього; окремого document-слухача "клік поза
+  // .nav__search" більше не треба.
+  backdrop.addEventListener("click", closeSearch);
+
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !panel.hidden) closeSearch();
+    if (event.key === "Escape" && isOpen) closeSearch();
   });
 }
 
