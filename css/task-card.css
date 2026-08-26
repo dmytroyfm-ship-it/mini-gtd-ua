@@ -9,7 +9,7 @@
   padding: 1.25rem 1.4rem;
   background: var(--bg-soft);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 22px;
   box-shadow: var(--shadow-card);
   /* Кожна зміна в задачі (галочка, статус, дедлайн...) перемальовує
      картку заново з нуля (PROJECT_RULES-патерн "оновити стор →
@@ -33,7 +33,7 @@
 .task-card--detail {
   padding: 1.75rem 2rem;
   gap: 1.25rem;
-  border-radius: 20px;
+  border-radius: 26px;
 }
 
 .task-card--detail .task-card__title,

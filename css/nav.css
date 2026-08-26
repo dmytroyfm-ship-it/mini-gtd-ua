@@ -349,6 +349,9 @@
   height: 30px;
   border-radius: 999px;
   object-fit: cover;
+  /* Тонкий кольоровий контур навколо аватара — акцент на тому, що
+     це "твій" профіль, а не просто ще одна іконка в барі. */
+  box-shadow: 0 0 0 2px var(--accent-dim);
 }
 
 .account-menu__avatar--fallback {
@@ -380,7 +383,7 @@
   padding: 0.9rem;
   background: var(--bg-soft);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 20px;
   box-shadow: var(--shadow-card);
 }
 

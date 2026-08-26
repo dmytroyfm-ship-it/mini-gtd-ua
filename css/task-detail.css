@@ -211,9 +211,9 @@
 
 .comments-block__submit {
   padding: 0.5rem 1.1rem;
-  background: var(--accent);
+  background: var(--accent-gradient);
   border: none;
-  border-radius: 10px;
+  border-radius: 999px;
   color: var(--ink);
   font-family: var(--font-body);
   font-weight: 600;

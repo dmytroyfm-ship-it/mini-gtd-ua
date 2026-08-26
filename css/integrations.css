@@ -11,7 +11,7 @@
   padding: 1.4rem 1.5rem;
   background: var(--bg-soft);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 22px;
   box-shadow: var(--shadow-card);
 }
 
@@ -67,9 +67,9 @@
 .integrations-card__button {
   align-self: flex-start;
   padding: 0.55rem 1rem;
-  background: var(--accent);
+  background: var(--accent-gradient);
   border: none;
-  border-radius: 10px;
+  border-radius: 999px;
   color: var(--ink);
   font-family: var(--font-body);
   font-size: 0.88rem;

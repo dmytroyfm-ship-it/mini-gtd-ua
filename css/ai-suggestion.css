@@ -38,7 +38,7 @@
   padding: 1.1rem 1.25rem;
   background: var(--bg-soft);
   border: 1px solid var(--accent-dim);
-  border-radius: 14px;
+  border-radius: 20px;
   box-shadow: var(--shadow-card);
 }
 
