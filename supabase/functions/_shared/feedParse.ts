@@ -1,8 +1,8 @@
 // RSS 2.0 / Atom — легкий регекс-парсер (без DOM/XML-бібліотеки:
 // формат фідів достатньо передбачуваний, щоб не тягнути залежність
-// заради цього) + резолв фід-URL для YouTube/Telegram/RSS-джерел
-// (js/pages/sources.js, sources.platform/handle) — спільне для
-// feed-poll/ (єдиний споживач наразі).
+// заради цього) + резолв фід-URL для YouTube/RSS-джерел і окремий
+// HTML-скрапер для Telegram (js/pages/sources.js, sources.platform/
+// handle) — спільне для feed-poll/ (єдиний споживач наразі).
 
 export interface FeedEntry {
   external_id: string | null;
@@ -20,7 +20,11 @@ function decodeEntities(value: string): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&apos;|&#39;/g, "'");
+    .replace(/&apos;|&#39;/g, "'")
+    // Числові сутності (&#036; "$", &#x2019; "’" тощо) — Telegram
+    // (t.me/s/...) рясно ними користується.
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
 }
 
 function stripTags(html: string): string {
@@ -129,19 +133,12 @@ async function resolveYoutubeChannelId(handle: string): Promise<string | null> {
   }
 }
 
-// Telegram не має власного RSS — міст через публічний інстанс
-// RSSHub (rsshub.app, безкоштовний, без реєстрації; за потреби
-// власного/стабільнішого інстансу — замінити базовий URL тут).
-function telegramFeedUrl(handle: string): string {
-  const clean = handle.trim().replace(/^https?:\/\/t\.me\//i, "").replace(/^@/, "");
-  return `https://rsshub.app/telegram/channel/${clean}`;
-}
-
 /** Платформа + handle («Джерела», sources.platform/handle) → готовий
  * URL фіда, або null, якщо платформа не підтримує автопарсинг (немає
- * безкоштовного RSS — instagram/threads/reddit/twitter; ці джерела
- * лишаються доступні лише через ручний виклик feed-webhook, напр.
- * платним скрапером типу Apify). */
+ * безкоштовного RSS — instagram/threads/reddit/twitter, а Telegram
+ * має власну функцію нижче, fetchTelegramEntries: HTML не XML). Ці
+ * непідтримані джерела лишаються доступні лише через ручний виклик
+ * feed-webhook, напр. платним скрапером типу Apify). */
 export async function resolveFeedUrl(platform: string, handle: string): Promise<string | null> {
   switch (platform) {
     case "rss":
@@ -150,9 +147,61 @@ export async function resolveFeedUrl(platform: string, handle: string): Promise<
       const channelId = await resolveYoutubeChannelId(handle);
       return channelId ? `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}` : null;
     }
-    case "telegram":
-      return telegramFeedUrl(handle);
     default:
       return null;
+  }
+}
+
+// Telegram не має власного RSS. Публічний міст RSSHub (rsshub.app) —
+// перший варіант, що напрошується, але живий тест (2026-08-31)
+// показав: тепер стоїть за Cloudflare-захистом від ботів (403, "Just
+// a moment..."), з Edge Function пройти неможливо в принципі. Замість
+// нього — офіційний легкий веб-перегляд публічних каналів
+// (t.me/s/<channel>, без бота й без стороннього мосту), розбираємо
+// власну HTML-розмітку напряму (структура інша, ніж RSS/Atom, тому
+// не через parseFeed()).
+export async function fetchTelegramEntries(handle: string, limit = 8): Promise<FeedEntry[]> {
+  const channel = handle.trim().replace(/^https?:\/\/t\.me\//i, "").replace(/^@/, "");
+  if (!channel) return [];
+
+  try {
+    const res = await fetch(`https://t.me/s/${channel}`, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; MiniGTDFeedPoll/1.0)" },
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+
+    const blocks = html.match(/<div class="tgme_widget_message_wrap[\s\S]*?(?=<div class="tgme_widget_message_wrap|$)/g) ?? [];
+    const entries: FeedEntry[] = [];
+
+    for (const block of blocks) {
+      const postMatch = block.match(/data-post="([^"]+)"/);
+      if (!postMatch) continue;
+
+      const textMatch = block.match(/<div class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+      const text = textMatch ? stripTags(decodeEntities(textMatch[1])).slice(0, 600) : null;
+      // Медіа-пости без підпису (фото/відео без тексту) — пропускаємо:
+      // немає природного заголовка, а порожня картка в стрічці лише
+      // засмічує список.
+      if (!text) continue;
+
+      const dateMatch = block.match(/<time[^>]*datetime="([^"]+)"/);
+
+      entries.push({
+        external_id: postMatch[1],
+        title: text.length > 120 ? `${text.slice(0, 120)}…` : text,
+        url: `https://t.me/${postMatch[1]}`,
+        text,
+        author: channel,
+        published_at: toIsoDate(dateMatch ? dateMatch[1] : null),
+      });
+    }
+
+    // t.me/s/ віддає повідомлення від старіших до новіших — беремо
+    // останні `limit` і перевертаємо, щоб найновіші йшли першими.
+    return entries.slice(-limit).reverse();
+  } catch (err) {
+    console.error("Не вдалося прочитати Telegram-канал", handle, err);
+    return [];
   }
 }

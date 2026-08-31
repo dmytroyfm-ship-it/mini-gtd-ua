@@ -4,10 +4,14 @@
 // feed-webhook зовнішнім парсером (Apify/Firecrawl тощо, платно) —
 // ця функція закриває безкоштовний випадок: сама, за розкладом
 // (pg_cron, див. supabase/migrations/20260831000000_setup_feed_poll_cron.sql),
-// читає всі sources, для YouTube/Telegram/RSS будує URL фіда
-// (_shared/feedParse.ts), і пересилає нові пости в feed-webhook —
-// той самий шлях (переклад/дедуп/валідація url), що й для будь-якого
-// іншого джерела вебхука, лише feed-poll сам відіграє роль «парсера».
+// читає всі sources. Для YouTube/RSS будує URL фіда й розбирає
+// XML (_shared/feedParse.ts, resolveFeedUrl+parseFeed); для Telegram —
+// окрема HTML-функція (fetchTelegramEntries, t.me/s/... — офіційний
+// веб-перегляд каналу, без бота й без стороннього RSS-мосту, той
+// свій публічний інстанс тепер за Cloudflare-захистом). Нові пости
+// пересилаються в feed-webhook — той самий шлях (переклад/дедуп/
+// валідація url), що й для будь-якого іншого джерела вебхука, лише
+// feed-poll сам відіграє роль «парсера».
 //
 // Instagram/Threads/Reddit/Twitter — без безкоштовного RSS, тут не
 // підтримані (resolveFeedUrl поверне null, джерело буде пропущене й
@@ -15,7 +19,7 @@
 // вручну через feed-webhook (напр. платним скрапером).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { resolveFeedUrl, parseFeed } from "../_shared/feedParse.ts";
+import { resolveFeedUrl, parseFeed, fetchTelegramEntries } from "../_shared/feedParse.ts";
 
 const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 const FEED_WEBHOOK_SECRET = Deno.env.get("FEED_WEBHOOK_SECRET") ?? "";
@@ -60,6 +64,18 @@ Deno.serve(async (req) => {
   const skipped: string[] = [];
 
   for (const source of (sources ?? []) as SourceRow[]) {
+    // Telegram — не XML-фід, а HTML-сторінка (t.me/s/...), тому своя
+    // функція (фетч+парсинг разом), не resolveFeedUrl()+parseFeed().
+    if (source.platform === "telegram") {
+      const entries = await fetchTelegramEntries(source.handle, ITEMS_PER_SOURCE);
+      if (entries.length === 0) {
+        skipped.push(`${source.platform}:${source.handle}`);
+        continue;
+      }
+      for (const entry of entries) items.push({ source_id: source.id, ...entry });
+      continue;
+    }
+
     const feedUrl = await resolveFeedUrl(source.platform, source.handle);
     if (!feedUrl) {
       skipped.push(`${source.platform}:${source.handle}`);
