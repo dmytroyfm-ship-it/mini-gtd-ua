@@ -70,14 +70,24 @@ export function parseFeed(xml: string, limit = 8): FeedEntry[] {
       extractTag(block, "description") ??
       extractTag(block, "summary") ??
       extractTag(block, "content") ??
+      // YouTube ховає опис відео не прямо в <entry>, а в
+      // <media:group><media:description> — інші фіди цього тега не
+      // мають, тож цей fallback безпечний і для них (просто null).
+      extractTag(block, "media:description") ??
       "";
+
+    // Atom <author> — не текст, а вкладена структура
+    // (<author><name>...</name></author>); RSS <author>/<dc:creator> —
+    // зазвичай простий текст. stripTags тут прибирає вкладені теги в
+    // обох випадках, нічого не ламаючи для простого варіанту.
+    const rawAuthor = extractTag(block, "author") ?? extractTag(block, "dc:creator") ?? null;
 
     entries.push({
       external_id: extractTag(block, isAtom ? "id" : "guid") ?? url,
       title: stripTags(title),
       url: url.trim(),
       text: rawText ? stripTags(rawText).slice(0, 600) : null,
-      author: extractTag(block, "author") ?? extractTag(block, "dc:creator") ?? null,
+      author: rawAuthor ? stripTags(rawAuthor) || null : null,
       published_at: toIsoDate(extractTag(block, "pubDate") ?? extractTag(block, "published") ?? extractTag(block, "updated")),
     });
   }
@@ -98,8 +108,21 @@ async function resolveYoutubeChannelId(handle: string): Promise<string | null> {
     const res = await fetch(pageUrl, { headers: { "User-Agent": "Mozilla/5.0 (compatible; MiniGTDFeedPoll/1.0)" } });
     if (!res.ok) return null;
     const html = await res.text();
-    const match = html.match(/"channelId":"(UC[0-9A-Za-z_-]{22})"/);
-    return match ? match[1] : null;
+    // Поле з channel_id мінялося в розмітці YouTube (перевірено живим
+    // фетчем 2026-08-31): сторінка @handle більше не містить
+    // "channelId", лише "externalId"/"browseId" чи canonical-посилання
+    // — пробуємо всі варіанти по черзі, найнадійніший (canonical) першим.
+    const patterns = [
+      /<link rel="canonical" href="https:\/\/www\.youtube\.com\/channel\/(UC[0-9A-Za-z_-]{22})"/,
+      /"externalId":"(UC[0-9A-Za-z_-]{22})"/,
+      /"browseId":"(UC[0-9A-Za-z_-]{22})"/,
+      /"channelId":"(UC[0-9A-Za-z_-]{22})"/,
+    ];
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match) return match[1];
+    }
+    return null;
   } catch (err) {
     console.error("Не вдалося визначити channelId YouTube для", handle, err);
     return null;
