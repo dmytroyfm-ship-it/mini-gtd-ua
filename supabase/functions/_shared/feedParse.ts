@@ -31,6 +31,18 @@ function stripTags(html: string): string {
   return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+// Звичайний .slice(0, n) ріже по UTF-16 code unit — емодзі (Telegram
+// рясно ними користується, 🔄🖥🏆 тощо) кодуються ДВОМА code units
+// (сурогатна пара); обрізка точно посередині лишає в рядку самотній
+// сурогат. Такий рядок далі ламає передачу як валідний UTF-8/JSON
+// (живий тест 2026-08-31: один із 32 постів не зберігся, "Empty or
+// invalid json"). Array.from() ділить по code points, не по code
+// units — сурогатні пари лишаються цілими.
+function safeTruncate(value: string, maxLength: number): string {
+  const codePoints = Array.from(value);
+  return codePoints.length <= maxLength ? value : codePoints.slice(0, maxLength).join("");
+}
+
 function extractTag(block: string, tag: string): string | null {
   const match = block.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`, "i"));
   return match ? decodeEntities(match[1]).trim() : null;
@@ -90,7 +102,7 @@ export function parseFeed(xml: string, limit = 8): FeedEntry[] {
       external_id: extractTag(block, isAtom ? "id" : "guid") ?? url,
       title: stripTags(title),
       url: url.trim(),
-      text: rawText ? stripTags(rawText).slice(0, 600) : null,
+      text: rawText ? safeTruncate(stripTags(rawText), 600) : null,
       author: rawAuthor ? stripTags(rawAuthor) || null : null,
       published_at: toIsoDate(extractTag(block, "pubDate") ?? extractTag(block, "published") ?? extractTag(block, "updated")),
     });
@@ -179,7 +191,7 @@ export async function fetchTelegramEntries(handle: string, limit = 8): Promise<F
       if (!postMatch) continue;
 
       const textMatch = block.match(/<div class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/);
-      const text = textMatch ? stripTags(decodeEntities(textMatch[1])).slice(0, 600) : null;
+      const text = textMatch ? safeTruncate(stripTags(decodeEntities(textMatch[1])), 600) : null;
       // Медіа-пости без підпису (фото/відео без тексту) — пропускаємо:
       // немає природного заголовка, а порожня картка в стрічці лише
       // засмічує список.
@@ -189,7 +201,7 @@ export async function fetchTelegramEntries(handle: string, limit = 8): Promise<F
 
       entries.push({
         external_id: postMatch[1],
-        title: text.length > 120 ? `${text.slice(0, 120)}…` : text,
+        title: safeTruncate(text, 120) === text ? text : `${safeTruncate(text, 120)}…`,
         url: `https://t.me/${postMatch[1]}`,
         text,
         author: channel,

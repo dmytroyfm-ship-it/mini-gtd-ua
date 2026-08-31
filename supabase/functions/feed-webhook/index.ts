@@ -124,6 +124,10 @@ async function ingestItem(item: IncomingItem): Promise<IngestResult> {
     // 23505 — унікальний індекс (source_id, external_id): парсер
     // уже присилав цей самий пост раніше, це не помилка.
     if (insertError.code === "23505") return { ok: true, reason: "duplicate, skipped" };
+    // Будь-яка інша причина — журналюємо весь item (не лише
+    // insertError.message, який іноді неінформативний, напр. "Empty
+    // or invalid json") для діагностики надалі.
+    console.error("Не вдалося зберегти пост стрічки:", insertError, item);
     return { ok: false, reason: insertError.message };
   }
 
