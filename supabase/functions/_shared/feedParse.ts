@@ -1,8 +1,9 @@
 // RSS 2.0 / Atom — легкий регекс-парсер (без DOM/XML-бібліотеки:
 // формат фідів достатньо передбачуваний, щоб не тягнути залежність
-// заради цього) + резолв фід-URL для YouTube/RSS-джерел і окремий
-// HTML-скрапер для Telegram (js/pages/sources.js, sources.platform/
-// handle) — спільне для feed-poll/ (єдиний споживач наразі).
+// заради цього) + резолв фід-URL для YouTube/RSS-джерел, окремий
+// HTML-скрапер для Telegram і виклик платного Apify-актора для
+// Instagram (js/pages/sources.js, sources.platform/handle) — спільне
+// для feed-poll/ (єдиний споживач наразі).
 
 export interface FeedEntry {
   external_id: string | null;
@@ -214,6 +215,71 @@ export async function fetchTelegramEntries(handle: string, limit = 8): Promise<F
     return entries.slice(-limit).reverse();
   } catch (err) {
     console.error("Не вдалося прочитати Telegram-канал", handle, err);
+    return [];
+  }
+}
+
+interface ApifyInstagramItem {
+  url?: string;
+  shortCode?: string;
+  id?: string;
+  caption?: string;
+  timestamp?: string;
+  ownerUsername?: string;
+}
+
+// Instagram не має безкоштовного RSS — на відміну від YouTube/RSS/
+// Telegram, тут довелось платити: Apify (apify.com), актор
+// apify/instagram-post-scraper, "run-sync-get-dataset-items" —
+// стартує акторa й одразу повертає результат (без окремого
+// опитування статусу запуску), саме те, що треба для виклику з
+// pg_cron. APIFY_API_TOKEN — новий секрет, задає розробник
+// (docs/ARCHITECTURE.md).
+const APIFY_API_TOKEN = Deno.env.get("APIFY_API_TOKEN") ?? "";
+const APIFY_INSTAGRAM_ACTOR = "apify~instagram-post-scraper";
+
+export async function fetchInstagramEntries(handle: string, limit = 5): Promise<FeedEntry[]> {
+  if (!APIFY_API_TOKEN) return [];
+
+  try {
+    const res = await fetch(
+      `https://api.apify.com/v2/actors/${APIFY_INSTAGRAM_ACTOR}/run-sync-get-dataset-items`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${APIFY_API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: [handle.trim()],
+          resultsLimit: limit,
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      console.error("Apify Instagram-актор відповів помилкою:", res.status, await res.text());
+      return [];
+    }
+
+    const items = (await res.json()) as ApifyInstagramItem[];
+    const entries: FeedEntry[] = [];
+
+    for (const item of items) {
+      if (!item.url || !item.caption) continue; // без підпису нема природного заголовка
+      const text = safeTruncate(item.caption.trim(), 600);
+      entries.push({
+        external_id: item.shortCode ?? item.id ?? item.url,
+        title: safeTruncate(text, 120) === text ? text : `${safeTruncate(text, 120)}…`,
+        url: item.url,
+        text,
+        author: item.ownerUsername ?? null,
+        published_at: toIsoDate(item.timestamp ?? null),
+      });
+    }
+    return entries;
+  } catch (err) {
+    console.error("Не вдалося отримати пости Instagram через Apify для", handle, err);
     return [];
   }
 }
