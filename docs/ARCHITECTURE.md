@@ -911,11 +911,16 @@ Twitter/RSS); «Стрічка» (`/feed`) — сюди стікаються п�
    supabase functions deploy feed-webhook
    ```
 4. Додати хоч одне джерело на `/sources`, скопіювати його `id`.
-5. Налаштувати зовнішній парсер (Apify/Firecrawl/будь-що інше, що
-   вміє надіслати POST) слати результат на
-   `https://ufjkundsaelfstfxslck.supabase.co/functions/v1/feed-webhook`
-   з `source_id` = скопійований `id` і заголовком
-   `x-feed-webhook-secret: <той_самий_рядок>` (чи `?secret=...`).
+5. Наповнити стрічку постами — двома способами, не взаємовиключними:
+   - **`feed-poll` (безкоштовно, вбудовано)** — для платформ
+     YouTube/Telegram/RSS, дивись підрозділ нижче;
+   - **зовнішній парсер** (Apify/Firecrawl/будь-що інше, що вміє
+     надіслати POST) — обов'язково для Instagram/Threads/Reddit/
+     Twitter (`feed-poll` їх не підтримує, немає безкоштовного RSS),
+     слати результат на
+     `https://ufjkundsaelfstfxslck.supabase.co/functions/v1/feed-webhook`
+     з `source_id` = скопійований `id` і заголовком
+     `x-feed-webhook-secret: <той_самий_рядок>` (чи `?secret=...`).
 6. Перевірити вручну (заміни `<...>` на свої значення):
    ```bash
    curl -X POST "https://ufjkundsaelfstfxslck.supabase.co/functions/v1/feed-webhook" \
@@ -925,6 +930,69 @@ Twitter/RSS); «Стрічка» (`/feed`) — сюди стікаються п�
    ```
    Пост має з'явитись на `/feed` — і, якщо `WHISPER_API_KEY`
    (Groq) уже налаштований, з перекладеним текстом.
+
+### «Стрічка» — автоматичний збір (`feed-poll`)
+
+[supabase/functions/feed-poll/index.ts](../supabase/functions/feed-poll/index.ts) —
+безкоштовна заміна зовнішнього парсера для трьох платформ, у яких є
+готовий RSS/Atom (чи легкий міст до нього): **YouTube**, **RSS**
+(звичайний блог/сайт) і **Telegram**. За розкладом (pg_cron, щогодини)
+сама читає всю таблицю `sources`, для кожного рядка будує URL фіда
+([_shared/feedParse.ts](../supabase/functions/_shared/feedParse.ts)):
+
+- `rss` — `handle` і є URL фіда напряму (має бути `http(s)://...`).
+- `youtube` — `handle` може бути `@handle`, посиланням на канал чи
+  вже готовим `channel_id` (`UC...`); якщо не `UC...` — функція сама
+  визначає `channel_id`, скануючи HTML сторінки каналу (без
+  YouTube Data API і без ключа/квоти), і будує
+  `https://www.youtube.com/feeds/videos.xml?channel_id=...`.
+- `telegram` — `handle` (`@channel` чи `t.me/channel`) конвертується
+  в `https://rsshub.app/telegram/channel/<channel>` (публічний
+  інстанс [RSSHub](https://docs.rsshub.app/), безкоштовний, без
+  реєстрації; за потреби власного/стабільнішого інстансу — замінити
+  базовий URL у `feedParse.ts`).
+- `instagram`/`threads`/`reddit`/`twitter` — **не підтримані**
+  (немає безкоштовного RSS), `resolveFeedUrl()` повертає `null`,
+  джерело просто пропускається (потрапляє в `skipped` у відповіді
+  функції); ці платформи, як і раніше, — лише через зовнішній
+  платний скрапер і ручний `feed-webhook`.
+
+Розпарсені записи (`_shared/feedParse.ts`, легкий регекс-парсер
+RSS `<item>`/Atom `<entry>` — без XML-бібліотеки, формат фідів
+достатньо передбачуваний) пересилаються батчем у сам `feed-webhook`
+(`{ "items": [...] }`) — той самий шлях (переклад Groq, дедуп за
+`(source_id, external_id)`, перевірка `url`), що й для будь-якого
+іншого джерела вебхука; `feed-poll` лише відіграє роль «парсера», не
+дублює жодної з цих логік.
+
+**Розгортання (ручні кроки — секрети й SQL я не бачу й не виконую):**
+
+1. `FEED_WEBHOOK_SECRET` уже заданий (крок 2 вище) — `feed-poll`
+   використовує той самий секрет, щоб покликати `feed-webhook`,
+   нового секрету для цього не треба.
+2. `CRON_SECRET` — той самий, що й для `daily-reminder`, якщо він
+   уже заданий, нового не треба; якщо ще нема:
+   ```bash
+   supabase secrets set CRON_SECRET=<той_самий_рядок>
+   ```
+3. Задеплоїти функцію:
+   ```bash
+   supabase functions deploy feed-poll
+   ```
+4. Виконати міграцію
+   [20260831000000_setup_feed_poll_cron.sql](../supabase/migrations/20260831000000_setup_feed_poll_cron.sql)
+   у Supabase SQL Editor — **перед запуском** замінити
+   `REPLACE_WITH_YOUR_CRON_SECRET` у самому SQL-файлі (в редакторі,
+   не в git) на той самий рядок, що й у кроці 2.
+5. Перевірити вручну, не чекаючи на початок години (підставивши свій
+   `CRON_SECRET`):
+   ```bash
+   curl -X POST "https://ufjkundsaelfstfxslck.supabase.co/functions/v1/feed-poll" \
+     -H "x-cron-secret: <той_самий_рядок>"
+   ```
+   Відповідь показує, скільки постів переслано (`forwarded`) і які
+   джерела пропущено (`skipped` — непідтримана платформа чи фід не
+   відповів).
 
 ## 2. Структура папок
 
@@ -1065,9 +1133,11 @@ GTD додаток/
 │   │   │   ├── dateHelpers.ts      — дати за київським часом (todayInKyiv,
 │   │   │   │                     mondayOf, monthRange тощо), для daily-reminder/
 │   │   │   │                     і telegram-webhook/ (/report)
-│   │   │   └── dailyDigest.ts       — побудова дайджесту задач (розкладання по
-│   │   │                         блоках, форматування), для daily-reminder/
-│   │   │                         (9:00) і telegram-webhook/ (/tasks, на вимогу)
+│   │   │   ├── dailyDigest.ts       — побудова дайджесту задач (розкладання по
+│   │   │   │                     блоках, форматування), для daily-reminder/
+│   │   │   │                     (9:00) і telegram-webhook/ (/tasks, на вимогу)
+│   │   │   └── feedParse.ts         — RSS/Atom-парсер + резолв фід-URL для
+│   │   │                         YouTube/Telegram/RSS, для feed-poll/
 │   │   ├── telegram-webhook/
 │   │   │   └── index.ts          — приймає Update від Telegram, створює задачу
 │   │   │                         (текст чи Whisper-транскрипція голосового),
@@ -1080,9 +1150,15 @@ GTD додаток/
 │   │   ├── ai-assist/
 │   │   │   └── index.ts          — проксі до Groq: розбити задачу на кроки /
 │   │   │                         обрати задачу для швидкої перемоги
-│   │   └── feed-webhook/
-│   │       └── index.ts          — приймає пости від зовнішнього парсера
-│   │                             (Apify/Firecrawl), перекладає, зберігає у feed_items
+│   │   ├── feed-webhook/
+│   │   │   └── index.ts          — приймає пости від зовнішнього парсера
+│   │   │                         (Apify/Firecrawl) чи від feed-poll/, перекладає,
+│   │   │                         зберігає у feed_items
+│   │   └── feed-poll/
+│   │       └── index.ts          — щогодини (pg_cron) сам читає sources
+│   │                             (YouTube/Telegram/RSS), пересилає нові пости в
+│   │                             feed-webhook/ (безкоштовна заміна зовнішнього
+│   │                             парсера для цих трьох платформ)
 │   └── migrations/
 │       ├── 20260824000000_create_tasks_table.sql
 │       │                          — схема tasks + RLS (виконано на реальному проєкті)
@@ -1101,7 +1177,7 @@ GTD додаток/
 │       │                          — pg_cron+pg_net: щоденний виклик daily-reminder
 │       │                          (потребує виконання — заміни секрет перед запуском)
 │       ├── 20260825020000_create_sources_and_feed_items_tables.sql
-│       │                          — sources + feed_items + RLS (потребує виконання)
+│       │                          — sources + feed_items + RLS (виконано)
 │       ├── 20260825030000_setup_storage_bucket.sql
 │       │                          — бакет user-uploads + RLS (потребує виконання)
 │       ├── 20260825040000_replace_notion_with_onedrive.sql
@@ -1119,9 +1195,12 @@ GTD додаток/
 │       ├── 20260826030000_schedule_daily_archival.sql
 │       │                          — pg_cron: автоперенесення в «Історію» о 22:30
 │       │                          (потребує виконання)
-│       └── 20260826040000_daily_reminder_weekdays_only.sql
-│                                  — daily-reminder лише в будні пн-пт
-│                                  (потребує виконання)
+│       ├── 20260826040000_daily_reminder_weekdays_only.sql
+│       │                          — daily-reminder лише в будні пн-пт
+│       │                          (потребує виконання)
+│       └── 20260831000000_setup_feed_poll_cron.sql
+│                                  — pg_cron+pg_net: щогодинний виклик feed-poll
+│                                  (потребує виконання — заміни секрет перед запуском)
 ├── docs/
 │   ├── PRD.md                    — опис продукту
 │   └── ARCHITECTURE.md           — цей документ
@@ -1363,12 +1442,16 @@ Supabase Storage, щоденне нагадування в Telegram і AI-фіч
 на кроки» — код готовий, міграції/секрети/деплой уже пройдені,
 активно працюють. Свідомо ще не зроблено:
 
-- **«Джерела» / «Стрічка»** — код готовий (сторінки, `feed-webhook/`,
-  переклад через Groq), але чи пройдені ручні кроки з розділу 1
-  («Джерела і Стрічка — потребує ручного налаштування»: SQL-міграція,
-  секрет, деплой функції, і сам зовнішній парсер — Apify/Firecrawl
-  тощо, поза цим проєктом) — не підтверджено; перевірити на `/sources`
-  і `/feed` перед тим, як покладатись на них.
+- **«Джерела» / «Стрічка»** — приймальна частина (SQL-міграція,
+  `FEED_WEBHOOK_SECRET`, деплой `feed-webhook`) підтверджена вручну
+  (curl-тест 2026-08-31 — пост дійшов до `/feed`). Автоматичний збір
+  для YouTube/Telegram/RSS — `feed-poll` (розділ 1, підрозділ
+  «"Стрічка" — автоматичний збір») задеплоєний, лишається виконати
+  його `pg_cron`-міграцію
+  ([20260831000000_setup_feed_poll_cron.sql](../supabase/migrations/20260831000000_setup_feed_poll_cron.sql)).
+  Instagram/Threads/Reddit/Twitter і далі потребують стороннього
+  платного парсера (Apify/Firecrawl тощо) — `feed-poll` їх свідомо не
+  підтримує (нема безкоштовного RSS).
 - **Тестування** — автоматичних тестів поки немає. Вхід через
   Google і збереження задач перевірені вручну; автоматичної
   перевірки, що RLS справді не пускає одного користувача до задач

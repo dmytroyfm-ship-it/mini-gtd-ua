@@ -22,3 +22,8 @@ verify_jwt = false
 # захист — FEED_WEBHOOK_SECRET.
 [functions.feed-webhook]
 verify_jwt = false
+
+# Той самий принцип, що й daily-reminder — цю функцію теж викликає
+# pg_cron (не Supabase-сесія), захист — той самий CRON_SECRET.
+[functions.feed-poll]
+verify_jwt = false
