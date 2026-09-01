@@ -18,11 +18,12 @@ import { renderFeed } from "./pages/feed.js";
 import { renderIntegrations } from "./pages/integrations.js";
 import { renderAuth } from "./pages/auth.js";
 import { getSession } from "./store/authStore.js";
+import { FEATURES } from "./config.js";
 
 const DEFAULT_PATH = "/inbox";
 const AUTH_PATH = "/auth";
 
-const ROUTES = [
+const ALL_ROUTES = [
   { path: "/auth", title: "Вхід", render: renderAuth, protected: false, bare: true },
   { path: "/inbox", title: "Вхідні", render: renderInbox, protected: true },
   { path: "/list/next", title: "Задачі", render: renderNext, protected: true },
@@ -31,19 +32,29 @@ const ROUTES = [
   { path: "/list/read_watch", title: "Читати / Дивитись", render: renderReadWatch, protected: true },
   { path: "/list/someday", title: "Колись", render: renderSomeday, protected: true },
   { path: "/history", title: "Історія", render: renderHistory, protected: true },
-  { path: "/feed", title: "Стрічка", render: renderFeed, protected: true },
+  // feature: "feed" — маршрут існує лише коли FEATURES.feed === true
+  // (js/config.js). Вимкнено — і «Стрічка», і «Джерела» зникають із
+  // навігації, а прямий перехід на них редіректить на «Вхідні»
+  // (matchRoute їх просто не знаходить). Код сторінок і сторів
+  // лишається на місці — це вимикач, не видалення.
+  { path: "/feed", title: "Стрічка", render: renderFeed, protected: true, feature: "feed" },
   // hideFromNav — маршрут доступний (посилання, кнопки), але не
   // захаращує головне меню; потрапити на нього можна лише з меню
   // акаунта (AccountMenu.js) — той самий принцип, що вже є для
   // динамічних маршрутів (/task/:id) нижче в getRoutes(). «Джерела»
   // й «Кошик» — за проханням користувача, менше вкладок на видноті.
-  { path: "/sources", title: "Джерела", render: renderSources, protected: true, hideFromNav: true },
+  { path: "/sources", title: "Джерела", render: renderSources, protected: true, hideFromNav: true, feature: "feed" },
   { path: "/trash", title: "Кошик", render: renderTrash, protected: true, hideFromNav: true },
   { path: "/integrations", title: "Інтеграції", render: renderIntegrations, protected: true, hideFromNav: true },
   // Потрапити можна лише через поле пошуку в Nav.js (setPendingSearchQuery
   // + navigate) — не окрема вкладка меню.
   { path: "/search", title: "Пошук", render: renderSearch, protected: true, hideFromNav: true },
 ];
+
+// Активні маршрути — без тих, чия фіча вимкнена в js/config.js.
+// Усе далі (matchRoute, getRoutes) працює лише з цим списком, тож
+// вимкнений маршрут для роутера просто не існує.
+const ROUTES = ALL_ROUTES.filter((route) => !route.feature || FEATURES[route.feature]);
 
 let pageRoot = null;
 let onRouteChange = null;

@@ -1,6 +1,7 @@
 // Меню акаунта в навігації: аватар-кнопка, що відкриває панель з
-// фото, ім'ям (можна редагувати), поштою, посиланнями на «Джерела»/
-// «Кошик»/«Інтеграції» й кнопкою «Вийти». Раніше пошта й «Вийти»
+// фото, ім'ям (можна редагувати), поштою, посиланнями на
+// «Джерела» (лише коли FEATURES.feed увімкнено, js/config.js) /
+// «Інтеграції» / «Кошик» й кнопкою «Вийти». Раніше пошта й «Вийти»
 // висіли прямо в барі навігації, а «Джерела»/«Кошик» — окремими
 // вкладками головного меню — усе перенесено сюди, щоб не займати
 // місце в головному меню (PROJECT_RULES, п.6 — сама лише показує
@@ -18,6 +19,7 @@ import {
   subscribe,
 } from "../store/authStore.js";
 import { getTheme, toggleTheme } from "../store/themeStore.js";
+import { FEATURES } from "../config.js";
 
 const AUTH_PATH = "/auth";
 
@@ -59,7 +61,7 @@ export function renderAccountMenu() {
       <button type="button" class="account-menu__bg-trigger">Фонове зображення</button>
       <button type="button" class="account-menu__bg-reset" hidden>Прибрати фон</button>
       <input type="file" class="account-menu__bg-input" accept="image/*" hidden />
-      <a href="/sources" data-link class="account-menu__link">Джерела</a>
+      ${FEATURES.feed ? `<a href="/sources" data-link class="account-menu__link">Джерела</a>` : ""}
       <a href="/integrations" data-link class="account-menu__link">Інтеграції</a>
       <a href="/trash" data-link class="account-menu__link">Кошик</a>
       <button type="button" class="account-menu__logout">Вийти</button>
