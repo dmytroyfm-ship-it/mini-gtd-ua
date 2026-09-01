@@ -262,16 +262,12 @@ export async function setTaskRecurrence(id, recurrence, dueDate) {
     values.recurrence_anchor_day = null;
   }
 
-  // Період («Початок періоду») має сенс лише для weekly/monthly —
-  // TaskCardDueDate.js ховає саме поле інакше. Без цього переведена
-  // на "Щодня"/"Не повторюється" задача лишала б старе значення
-  // recurrence_window_days у базі — невидиме (поле сховане) й
-  // незмінне, а isWindowActive() (для дошки /board) і далі гейтила б
-  // задачу за ним, ніби вона все ще в періоді, хоча користувач про
-  // це навіть не здогадається (знахідка код-рев'ю).
-  if (recurrence !== "weekly" && recurrence !== "monthly") {
-    values.recurrence_window_days = null;
-  }
+  // Період («Початок періоду» → «Дедлайн») тепер доступний для
+  // будь-якої задачі, не лише weekly/monthly (за проханням
+  // користувача) — тож зміна повторення його НЕ чіпає: користувач
+  // сам керує ним окремим полем (setTaskRecurrenceWindow), а
+  // очищається він лише разом із самим дедлайном (setTaskDueDate
+  // із dueDate = null).
 
   const { error } = await supabase.from("tasks").update(values).eq("id", id);
 
@@ -458,11 +454,17 @@ export async function setTaskList(id, list) {
 // значення просто лежить напоготові, якщо повторення стане "monthly"
 // пізніше, і завжди відображає останню дату, яку користувач сам
 // обрав руками (а не застарілий anchor від давно зміненого дедлайну).
+// Прибираючи дедлайн (dueDate = null), заразом чистимо й період
+// (recurrence_window_days) — «початок періоду» без кінця не має
+// сенсу, і без цього старе значення тихо ожило б при новому дедлайні.
 export async function setTaskDueDate(id, dueDate) {
-  const { error } = await supabase
-    .from("tasks")
-    .update({ due_date: dueDate, recurrence_anchor_day: dueDate ? computeAnchorDay(dueDate) : null })
-    .eq("id", id);
+  const values = {
+    due_date: dueDate,
+    recurrence_anchor_day: dueDate ? computeAnchorDay(dueDate) : null,
+  };
+  if (!dueDate) values.recurrence_window_days = null;
+
+  const { error } = await supabase.from("tasks").update(values).eq("id", id);
 
   if (error) throw error;
 }

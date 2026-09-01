@@ -1,5 +1,6 @@
-// Дедлайн, необов'язковий період («Початок періоду», лише weekly/
-// monthly), повторення й «⏭ Пропустити» — усе під `.task-card__due`.
+// Дедлайн, необов'язковий період («Початок періоду» → «Дедлайн»,
+// для будь-якої задачі — не лише повторюваної), повторення й
+// «⏭ Пропустити» — усе під `.task-card__due`.
 // Винесено з TaskCard.js (файл переріс 670+ рядків, поєднуючи п'ять
 // незалежних блоків картки) — той самий принцип самодостатнього
 // блоку, що вже є в SubtaskItem.js/MaterialsBlock.js.
@@ -23,10 +24,10 @@ function windowStartOf(task) {
 export function renderTaskCardDueDate(task, handlers = {}) {
   const { onDueDateChange, onRecurrenceChange, onRecurrenceWindowChange, onSkipTask } = handlers;
 
-  // Період показуємо лише для weekly/monthly — для "щодня" й "не
-  // повторюється" (де recurrence_window_days ігнорується скрізь
-  // нижче) поле початку періоду просто ховається.
-  const showWindow = task.recurrence === "weekly" || task.recurrence === "monthly";
+  // Поле «Початок періоду» («З») показуємо завжди — період дедлайну
+  // тепер доступний для будь-якої задачі, не лише повторюваної
+  // щотижня/щомісяця (за прямим проханням користувача). Порожнє поле
+  // = звичайний одноденний дедлайн, як і було.
   const windowStartValue = windowStartOf(task);
 
   const wrapper = document.createElement("div");
@@ -38,10 +39,9 @@ export function renderTaskCardDueDate(task, handlers = {}) {
       class="task-card__due-window-start"
       aria-label="Початок періоду (необов'язково)"
       value="${windowStartValue}"
-      ${showWindow ? "" : "hidden"}
     />
-    <span class="task-card__due-range-arrow" ${showWindow ? "" : "hidden"}>→</span>
-    <input type="date" class="task-card__due-input" value="${task.due_date || ""}" />
+    <span class="task-card__due-range-arrow">→</span>
+    <input type="date" class="task-card__due-input" aria-label="Дедлайн (кінець періоду)" value="${task.due_date || ""}" />
     <button type="button" class="task-card__due-clear" aria-label="Прибрати дедлайн" ${task.due_date ? "" : "hidden"}>✕</button>
     <select class="task-card__recurrence" aria-label="Повторення">
       <option value="">Не повторюється</option>
@@ -117,12 +117,13 @@ function wireRecurrence(wrapper, task, onRecurrenceChange) {
   });
 }
 
-// Поле «Початок періоду» — необов'язкове; має сенс лише для
-// weekly/monthly (renderTaskCardDueDate ховає його інакше). Зберігає
-// не саму дату, а довжину періоду в днях ДО дедлайну
-// (recurrence_window_days) — так наступний цикл повторення сам
-// зсуває обидві межі періоду на однакову відстань (completeTask()
-// в taskStore.js), без окремого перерахунку тут.
+// Поле «Початок періоду» — необов'язкове; доступне для будь-якої
+// задачі. Зберігає не саму дату, а довжину періоду в днях ДО
+// дедлайну (recurrence_window_days) — так для повторюваної задачі
+// наступний цикл сам зсуває обидві межі періоду на однакову
+// відстань (completeTask() в taskStore.js), без окремого
+// перерахунку тут. Для неповторюваної це просто «не показуй цю
+// задачу на дошці, поки не настане початок» (isWindowActive()).
 function wireRecurrenceWindow(wrapper, task, onRecurrenceWindowChange) {
   const startInput = wrapper.querySelector(".task-card__due-window-start");
   const dueInput = wrapper.querySelector(".task-card__due-input");
