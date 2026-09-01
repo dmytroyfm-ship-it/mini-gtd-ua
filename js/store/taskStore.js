@@ -541,6 +541,40 @@ export async function getArchivedTasks() {
   return data;
 }
 
+// Активні задачі (не виконані, не скасовані, не в архіві, не в
+// кошику), у яких є хоч ОДНА виконана підзадача — для режиму «Усі»
+// на сторінці «Історія»: бачити прогрес по ще незавершених задачах
+// («які підзадачі я вже зробив, а які лишились»). Задача без жодної
+// виконаної підзадачі туди не потрапляє (прохання користувача).
+// Два запити: спершу task_id усіх виконаних підзадач (RLS звужує до
+// цього користувача), тоді самі задачі з цього набору, що досі
+// активні. Обсяг для особистого використання — не той, щоб городити
+// join/RPC.
+export async function getActiveTasksWithDoneSubtasks() {
+  const { data: doneSubs, error: subError } = await supabase
+    .from("subtasks")
+    .select("task_id")
+    .eq("completed", true);
+
+  if (subError) throw subError;
+
+  const taskIds = [...new Set((doneSubs ?? []).map((subtask) => subtask.task_id))];
+  if (taskIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .in("id", taskIds)
+    .is("deleted_at", null)
+    .eq("completed", false)
+    .neq("status", "cancelled")
+    .neq("list", "archive")
+    .order("updated_at", { ascending: false });
+
+  if (error) throw error;
+  return data;
+}
+
 // Повернення задачі з «Історії» назад у «Вхідні» (history.js, кнопка
 // «Повернути у Вхідні» — доступна для всього, крім справді виконаних:
 // скасовані задачі, і про всяк випадок — старі записи в архіві, що

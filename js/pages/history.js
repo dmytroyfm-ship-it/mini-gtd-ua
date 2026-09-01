@@ -1,15 +1,27 @@
-// Сторінка «Історія» (/history) — виконані чи скасовані задачі,
-// видно одразу (getArchivedTasks() у taskStore.js — completed/
-// cancelled, незалежно від нічного автоперенесення о 22:30, pg_cron,
-// 20260826030000_schedule_daily_archival.sql, яке лише прибирає їх
-// із дошки/інших списків). Сама лише читає й показує (два запити:
-// задачі + їхні підзадачі одним getSubtasksByTaskIds() — під кожним
-// рядком видно, які підзадачі виконані, а які лишились), звіт за
-// період — фільтрація вже отриманого масиву на клієнті (для
-// особистого використання обсяг не той, щоб виправдовувати окремий
-// запит на кожну зміну періоду).
+// Сторінка «Історія» (/history).
+//
+// Два режими (перемикач «Усі» / «Тільки завершені», вибір
+// запам'ятовується в localStorage):
+//   • «Тільки завершені» — виконані чи скасовані задачі
+//     (getArchivedTasks() у taskStore.js — completed/cancelled,
+//     незалежно від нічного автоперенесення о 22:30, pg_cron,
+//     20260826030000_schedule_daily_archival.sql). Це «журнал
+//     завершеного», фільтрується за періодом.
+//   • «Усі» — додатково показує АКТИВНІ задачі, у яких є хоч одна
+//     виконана підзадача (getActiveTasksWithDoneSubtasks()) — щоб
+//     бачити прогрес по незавершених («що я вже зробив, що лишилось»).
+//     Ці рядки не залежать від вибраного періоду (це поточний стан,
+//     не подія в минулому) і йдуть зверху списку.
+//
+// Сама лише читає й показує; звіт за період — фільтрація вже
+// отриманого масиву на клієнті (для особистого використання обсяг
+// не той, щоб виправдовувати окремий запит на кожну зміну періоду).
 
-import { getArchivedTasks, restoreFromHistory } from "../store/taskStore.js";
+import {
+  getArchivedTasks,
+  getActiveTasksWithDoneSubtasks,
+  restoreFromHistory,
+} from "../store/taskStore.js";
 import { getSubtasksByTaskIds } from "../store/subtaskStore.js";
 import { renderHistoryList } from "../components/HistoryList.js";
 
@@ -21,6 +33,28 @@ const PRESETS = [
   { key: "last-month", label: "Минулий місяць" },
   { key: "range", label: "Діапазон дат" },
 ];
+
+// Режим списку — «done» (лише завершені, за замовчуванням: зберігає
+// звичний сенс «Історії») чи «all» (+ активні з прогресом підзадач).
+// Вибір у localStorage, не в БД — суто уподобання перегляду, той
+// самий підхід, що й у теми (js/store/themeStore.js).
+const SCOPE_KEY = "mini-gtd-history-scope";
+
+function loadScope() {
+  try {
+    return localStorage.getItem(SCOPE_KEY) === "all" ? "all" : "done";
+  } catch (e) {
+    return "done";
+  }
+}
+
+function saveScope(scope) {
+  try {
+    localStorage.setItem(SCOPE_KEY, scope);
+  } catch (e) {
+    /* приватний режим тощо — не критично */
+  }
+}
 
 // Понеділок тижня, що містить date (getDay(): 0=нд..6=сб).
 function mondayOf(date) {
@@ -102,10 +136,20 @@ function resolvedAtOf(task) {
   return new Date(task.completed_at || task.cancelled_at || task.updated_at);
 }
 
+// Активна задача, показана лише заради прогресу підзадач (режим
+// «Усі») — той самий критерій, що й у HistoryItem.isInProgress().
+function isInProgress(task) {
+  return !task.completed && task.status !== "cancelled" && task.list !== "archive";
+}
+
 export async function renderHistory(root) {
   root.innerHTML = `
     <h1 class="page__title">Історія</h1>
     <div class="history-report">
+      <div class="history-report__scope">
+        <button type="button" class="history-report__scope-btn" data-scope="all">Усі</button>
+        <button type="button" class="history-report__scope-btn" data-scope="done">Тільки завершені</button>
+      </div>
       <div class="history-report__presets">
         ${PRESETS.map(
           (p) => `<button type="button" class="history-report__preset" data-preset="${p.key}">${p.label}</button>`
@@ -126,15 +170,26 @@ export async function renderHistory(root) {
     <div class="history-list-slot"><p class="page__text">Завантаження…</p></div>
   `;
 
+  const scopeButtons = root.querySelectorAll(".history-report__scope-btn");
   const presetButtons = root.querySelectorAll(".history-report__preset");
   const fromInput = root.querySelector(".history-report__from");
   const toInput = root.querySelector(".history-report__to");
   const summary = root.querySelector(".history-report__summary");
   const listSlot = root.querySelector(".history-list-slot");
 
-  let allTasks = [];
+  let doneTasks = []; // завершені/скасовані/архів
+  let activeTasks = []; // активні з прогресом підзадач (лише режим "all")
   let subtasksByTask = new Map();
+  let scope = loadScope();
   let activePreset = "today";
+
+  function setActiveScope(next) {
+    scope = next;
+    saveScope(next);
+    scopeButtons.forEach((button) => {
+      button.classList.toggle("history-report__scope-btn--active", button.dataset.scope === next);
+    });
+  }
 
   function setActivePreset(preset) {
     activePreset = preset;
@@ -150,35 +205,51 @@ export async function renderHistory(root) {
 
   function render() {
     const range = currentRange();
-    const filtered = range.empty
+    const filteredDone = range.empty
       ? []
-      : allTasks.filter((task) => {
+      : doneTasks.filter((task) => {
           const at = resolvedAtOf(task);
           if (range.from && at < range.from) return false;
           if (range.to && at > range.to) return false;
           return true;
         });
 
-    const doneCount = filtered.filter((task) => task.completed).length;
-    const cancelledCount = filtered.filter((task) => task.status === "cancelled").length;
-    summary.textContent = `✅ Виконано: ${doneCount} · 🚫 Скасовано: ${cancelledCount}`;
+    // Активні задачі — завжди зверху, без фільтра за періодом (це
+    // поточний стан роботи, а не подія в конкретному дні).
+    const rows = [...activeTasks, ...filteredDone];
 
-    const emptyText = range.empty
-      ? "Вкажіть дати «З» і/або «По» вище, щоб побачити задачі за проміжок."
-      : "За цей період нічого нема.";
+    const doneCount = filteredDone.filter((task) => task.completed).length;
+    const cancelledCount = filteredDone.filter((task) => task.status === "cancelled").length;
+    const parts = [`✅ Виконано: ${doneCount}`, `🚫 Скасовано: ${cancelledCount}`];
+    if (scope === "all") parts.push(`🔵 В роботі: ${activeTasks.length}`);
+    summary.textContent = parts.join(" · ");
 
-    listSlot.replaceChildren(
-      renderHistoryList(filtered, { onRestore: handleRestore }, emptyText, subtasksByTask)
-    );
+    let emptyText;
+    if (rows.length === 0) {
+      emptyText = range.empty
+        ? "Вкажіть дати «З» і/або «По» вище, щоб побачити задачі за проміжок."
+        : scope === "all"
+          ? "Нічого нема: ні завершених за цей період, ні активних задач із виконаними підзадачами."
+          : "За цей період нічого нема.";
+    }
+
+    listSlot.replaceChildren(renderHistoryList(rows, { onRestore: handleRestore }, emptyText, subtasksByTask));
   }
 
   async function loadAll() {
     try {
-      allTasks = await getArchivedTasks();
-      subtasksByTask = await getSubtasksByTaskIds(allTasks.map((task) => task.id));
+      const [archived, active] = await Promise.all([
+        getArchivedTasks(),
+        scope === "all" ? getActiveTasksWithDoneSubtasks() : Promise.resolve([]),
+      ]);
+      doneTasks = archived;
+      activeTasks = active;
+      const allIds = [...doneTasks, ...activeTasks].map((task) => task.id);
+      subtasksByTask = await getSubtasksByTaskIds(allIds);
     } catch (err) {
       console.error(err);
-      allTasks = [];
+      doneTasks = [];
+      activeTasks = [];
       subtasksByTask = new Map();
       listSlot.innerHTML = "";
       const error = document.createElement("p");
@@ -195,6 +266,18 @@ export async function renderHistory(root) {
     await restoreFromHistory(task.id);
     await loadAll();
   }
+
+  scopeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.dataset.scope === scope) return;
+      setActiveScope(button.dataset.scope);
+      listSlot.replaceChildren(Object.assign(document.createElement("p"), {
+        className: "page__text",
+        textContent: "Завантаження…",
+      }));
+      loadAll();
+    });
+  });
 
   presetButtons.forEach((button) => {
     button.addEventListener("click", () => {
@@ -219,6 +302,7 @@ export async function renderHistory(root) {
     render();
   });
 
+  setActiveScope(scope);
   setActivePreset("today");
   await loadAll();
 }

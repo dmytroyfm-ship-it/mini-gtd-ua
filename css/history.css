@@ -14,6 +14,38 @@
   gap: 0.8rem;
 }
 
+/* Перемикач режиму: «Усі» / «Тільки завершені» — сегментована
+   кнопка (дві половинки в одній рамці), відділена від пресетів
+   періоду вище них. */
+.history-report__scope {
+  display: inline-flex;
+  align-self: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.history-report__scope-btn {
+  padding: 0.4rem 0.9rem;
+  background: transparent;
+  border: none;
+  color: var(--ink-dim);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.history-report__scope-btn:hover {
+  color: var(--ink);
+}
+
+.history-report__scope-btn--active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .history-report__presets {
   display: flex;
   flex-wrap: wrap;
@@ -218,6 +250,15 @@
   background: var(--bg-raised);
   color: var(--ink-dim);
   border: 1px dashed var(--line);
+}
+
+/* «🔵 В роботі» — активна задача, показана заради прогресу підзадач
+   (режим «Усі»). Суцільна рамка акцентом відрізняє її від
+   завершених (сірих) і скасованих (заливка акцентом). */
+.history-item__badge--in-progress {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
 }
 
 .history-item__restore {

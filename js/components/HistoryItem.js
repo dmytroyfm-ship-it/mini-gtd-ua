@@ -1,14 +1,14 @@
 // Один рядок «Історії»: назва задачі, нотатка (якщо є), розклад
 // підзадач (якщо є — які виконані, які ні), позначка
-// «✅ Виконано» / «🚫 Скасовано» / «📁 В архіві» з датою — і кнопка
-// «Повернути у Вхідні» для всього, крім справді виконаного (виконані
-// повертати нема сенсу: щоб зробити задачу знову активною, простіше
-// зняти позначку «виконано» прямо на сторінці задачі). Сам нічого в
-// базу не пише — викликає handlers.onRestore і показує результат
-// (стан disabled). Логіка живе в js/store/taskStore.js
-// (PROJECT_RULES, п.6). Підзадачі тут — лише для огляду, без
-// чекбоксів: «Історія» це звіт, а не робочий екран (редагувати
-// підзадачі можна на сторінці задачі /task/:id).
+// «✅ Виконано» / «🚫 Скасовано» / «📁 В архіві» (з датою) або
+// «🔵 В роботі» (без дати — активна задача, показана лише заради
+// прогресу підзадач, режим «Усі» в history.js) — і кнопка «Повернути
+// у Вхідні» для скасованих/архівних (виконані повертати нема сенсу,
+// активні й так активні). Сам нічого в базу не пише — викликає
+// handlers.onRestore і показує результат (стан disabled). Логіка
+// живе в js/store/taskStore.js (PROJECT_RULES, п.6). Підзадачі тут —
+// лише для огляду, без чекбоксів: «Історія» це звіт, а не робочий
+// екран (редагувати підзадачі можна на сторінці задачі /task/:id).
 
 function escapeHtml(value) {
   const container = document.createElement("div");
@@ -26,14 +26,24 @@ function formatDate(isoString) {
   return `${day}.${month}.${date.getFullYear()}`;
 }
 
+// Активна задача, показана в «Історії» лише заради прогресу підзадач
+// (режим «Усі» — history.js): ще не виконана, не скасована, не в
+// архіві. Її не можна «повернути у Вхідні» (вона й так активна), і
+// бейдж без дати (updated_at тут — «коли востаннє редагував задачу»,
+// не «коли робив підзадачі», тож ввів би в оману).
+function isInProgress(task) {
+  return !task.completed && task.status !== "cancelled" && task.list !== "archive";
+}
+
 // completed=true — єдиний однозначний випадок "справді зроблено".
-// Усе інше (status "cancelled", чи навіть старі задачі, занесені
-// сюди ще вручну до автоперенесення — ні виконані, ні скасовані)
-// повертається кнопкою "Повернути у Вхідні": показувати їх як
-// "виконано" було б неправдою.
+// status "cancelled" — скасовано. Активна задача з прогресом підзадач
+// — «в роботі». Решта (старі задачі, занесені сюди ще вручну до
+// автоперенесення — ні виконані, ні скасовані, але в архіві) —
+// нейтральна позначка + кнопка "Повернути у Вхідні".
 function badgeOf(task) {
   if (task.completed) return { cls: "completed", text: "✅ Виконано" };
   if (task.status === "cancelled") return { cls: "cancelled", text: "🚫 Скасовано" };
+  if (isInProgress(task)) return { cls: "in-progress", text: "🔵 В роботі" };
   return { cls: "neutral", text: "📁 В архіві" };
 }
 
@@ -70,8 +80,10 @@ export function renderHistoryItem(task, handlers = {}, subtasks = []) {
   row.className = "history-item";
 
   const badge = badgeOf(task);
-  const isRestorable = !task.completed;
+  const inProgress = isInProgress(task);
+  const isRestorable = !task.completed && !inProgress;
   const resolvedAt = task.completed_at || task.cancelled_at || task.updated_at;
+  const badgeText = inProgress ? badge.text : `${badge.text} · ${formatDate(resolvedAt)}`;
 
   const noteHtml = task.note ? `<p class="history-item__note">${escapeHtml(task.note)}</p>` : "";
   const subtasksHtml = renderSubtasks(subtasks);
@@ -87,7 +99,7 @@ export function renderHistoryItem(task, handlers = {}, subtasks = []) {
       ${subtasksHtml}
     </div>
     ${isRestorable ? `<button type="button" class="history-item__restore">Повернути у Вхідні</button>` : ""}
-    <span class="history-item__badge history-item__badge--${badge.cls}">${badge.text} · ${formatDate(resolvedAt)}</span>
+    <span class="history-item__badge history-item__badge--${badge.cls}">${badgeText}</span>
   `;
 
   if (isRestorable) {
