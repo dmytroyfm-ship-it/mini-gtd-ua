@@ -314,13 +314,24 @@
 
 /* Мобільний вигляд: тонка верхня смужка + висувна бічна панель */
 @media (max-width: 959px) {
+  /* Прилипає ВСЯ .nav, а не сама смужка: .nav__panel на мобільному —
+     position: fixed (випадає з потоку), тож .nav завширшки з тільки
+     .nav__mobile-bar. Sticky на самій смужці не мав куди «липнути» —
+     її контейнер (.nav) заввишки рівно з неї й прокручувався геть
+     разом зі сторінкою, забираючи смужку з собою (баг, знайдений
+     користувачем). Sticky на .nav — контейнер тепер body (флекс-
+     колонка), місця вистачає на весь скрол. (sticky не створює
+     containing block для fixed-нащадків, тож .nav__panel/.nav__overlay
+     і далі кріпляться до в'юпорта.) */
+  .nav {
+    position: sticky;
+    top: 0;
+  }
+
   .nav__mobile-bar {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    position: sticky;
-    top: 0;
-    z-index: 20;
     padding: 0.85rem 1.25rem;
     background: var(--bg-soft);
     border-bottom: 1px solid var(--line);
