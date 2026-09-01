@@ -549,6 +549,7 @@
 .account-menu__bg-trigger,
 .account-menu__bg-reset,
 .account-menu__link,
+.account-menu__export,
 .account-menu__logout {
   display: block;
   padding: 0.5rem 0.6rem;
@@ -569,9 +570,15 @@
 .account-menu__photo-trigger:hover,
 .account-menu__bg-trigger:hover,
 .account-menu__link:hover,
+.account-menu__export:hover,
 .account-menu__logout:hover {
   background: var(--bg-raised);
   color: var(--ink);
+}
+
+.account-menu__export:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 /* Перемикач теми — окремий від профільних дій нижче (фото/фон),

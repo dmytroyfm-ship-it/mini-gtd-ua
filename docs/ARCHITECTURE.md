@@ -231,6 +231,17 @@ OAuth-логіну) або власне, задане через `authStore
 так і при вході з іншого пристрою, де фон уже збережено в
 `user_metadata`.
 
+**«Експортувати дані»** (у меню акаунта, між «Кошик» і «Вийти») —
+резервна копія: [js/store/exportStore.js](../js/store/exportStore.js)
+`exportAllData()` робить `select *` по всіх таблицях користувача
+(`tasks`, `subtasks`, `materials`, `comments`, `telegram_links`,
+`sources`, `feed_items`) — RLS сам обмежує вибірку його рядками — і
+повертає `{ filename, data }`. Сам Blob і завантаження файлу
+(`mini-gtd-backup-РРРР-ММ-ДД.json`) — уже в `AccountMenu.js` (це
+взаємодія з браузером, не робота з даними). Потрібно, бо Supabase на
+безкоштовному тарифі не робить автоматичних бекапів; користувачу
+радимо експортувати раз на місяць і перед кожною SQL-міграцією.
+
 ### Supabase Storage — фото акаунта, фон застосунку й файли в «Матеріалах»
 
 Один спільний бакет `user-uploads` (публічний на читання — інакше
@@ -1119,7 +1130,10 @@ GTD додаток/
 │   │   │                             JSDoc-тип Task
 │   │   ├── subtaskStore.js         — підзадачі (getSubtasks, getSubtasksByTaskIds,
 │   │   │                             addSubtask, setSubtaskTitle, setSubtaskCompleted,
-│   │   │                             setSubtaskDueDate, setSubtaskTags, deleteSubtask)
+│   │   │                             setSubtaskDueDate, setSubtaskTags,
+│   │   │                             setSubtaskPositions, deleteSubtask)
+│   │   ├── exportStore.js           — резервна копія (exportAllData → усі
+│   │   │                             таблиці користувача одним JSON)
 │   │   ├── materialStore.js         — матеріали (getMaterials, addMaterial,
 │   │   │                             deleteMaterial)
 │   │   ├── commentStore.js          — коментарі (getComments, addComment,
@@ -1145,7 +1159,7 @@ GTD додаток/
 │   │   │                             весь застосунок (#user-bg, index.html)
 │   │   ├── AccountMenu.js          — меню акаунта: перемикач теми, фото,
 │   │   │                             фонове зображення, «Джерела»/«Інтеграції»/
-│   │   │                             «Кошик», «Вийти»
+│   │   │                             «Кошик», «Експортувати дані», «Вийти»
 │   │   ├── AuthCard.js             — картка логіну (кнопка Google, помилка)
 │   │   ├── TaskForm.js            — картка форми (стан збереження, помилка)
 │   │   ├── TaskList.js             — колонка карток задач / порожній стан

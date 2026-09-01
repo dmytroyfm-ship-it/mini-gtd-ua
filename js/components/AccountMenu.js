@@ -1,7 +1,8 @@
 // Меню акаунта в навігації: аватар-кнопка, що відкриває панель з
 // фото, ім'ям (можна редагувати), поштою, посиланнями на
 // «Джерела» (лише коли FEATURES.feed увімкнено, js/config.js) /
-// «Інтеграції» / «Кошик» й кнопкою «Вийти». Раніше пошта й «Вийти»
+// «Інтеграції» / «Кошик», кнопкою «Експортувати дані» (усі задачі
+// одним JSON-файлом, exportStore.js) й кнопкою «Вийти». Раніше пошта й «Вийти»
 // висіли прямо в барі навігації, а «Джерела»/«Кошик» — окремими
 // вкладками головного меню — усе перенесено сюди, щоб не займати
 // місце в головному меню (PROJECT_RULES, п.6 — сама лише показує
@@ -19,6 +20,7 @@ import {
   subscribe,
 } from "../store/authStore.js";
 import { getTheme, toggleTheme } from "../store/themeStore.js";
+import { exportAllData } from "../store/exportStore.js";
 import { FEATURES } from "../config.js";
 
 const AUTH_PATH = "/auth";
@@ -64,6 +66,7 @@ export function renderAccountMenu() {
       ${FEATURES.feed ? `<a href="/sources" data-link class="account-menu__link">Джерела</a>` : ""}
       <a href="/integrations" data-link class="account-menu__link">Інтеграції</a>
       <a href="/trash" data-link class="account-menu__link">Кошик</a>
+      <button type="button" class="account-menu__export">Експортувати дані</button>
       <button type="button" class="account-menu__logout">Вийти</button>
     </div>
   `;
@@ -78,6 +81,7 @@ export function renderAccountMenu() {
   const bgReset = wrapper.querySelector(".account-menu__bg-reset");
   const bgInput = wrapper.querySelector(".account-menu__bg-input");
   const links = wrapper.querySelectorAll(".account-menu__link");
+  const exportButton = wrapper.querySelector(".account-menu__export");
   const logoutButton = wrapper.querySelector(".account-menu__logout");
 
   function closePanel() {
@@ -275,6 +279,36 @@ export function renderAccountMenu() {
   });
 
   links.forEach((link) => link.addEventListener("click", closePanel));
+
+  // «Експортувати дані» — усі задачі/підзадачі/матеріали/коментарі
+  // одним JSON-файлом (exportStore тягне дані, тут — лише Blob і
+  // завантаження, взаємодія з браузером). Панель не закриваємо, поки
+  // готується файл, щоб було видно стан «Готую…».
+  exportButton.addEventListener("click", async () => {
+    const idleLabel = exportButton.textContent;
+    exportButton.disabled = true;
+    exportButton.textContent = "Готую файл…";
+
+    try {
+      const { filename, data } = await exportAllData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      closePanel();
+    } catch (err) {
+      console.error(err);
+      window.alert("Не вдалося експортувати дані. Спробуйте ще раз.");
+    } finally {
+      exportButton.disabled = false;
+      exportButton.textContent = idleLabel;
+    }
+  });
 
   logoutButton.addEventListener("click", async () => {
     closePanel();
