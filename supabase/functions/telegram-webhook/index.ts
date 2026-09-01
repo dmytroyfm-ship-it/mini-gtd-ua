@@ -47,14 +47,17 @@
 //                          (COMMAND_TO_ARGS нижче — той самий
 //                          parseReportRange() на обидва шляхи, той
 //                          самий порядок, що й пресети на сторінці
-//                          «Історія»), і окремо /report_range — не
-//                          підставляє готовий період, а питає дати
-//                          окремим повідомленням (force_reply,
-//                          RANGE_PROMPT_TEXT нижче) — зручно, коли
-//                          лінь одразу набирати повний синтаксис дат
-//                          напам'ять. Саме меню (кнопка "/" у
-//                          Telegram) реєструється окремо, один раз,
-//                          через setMyCommands — docs/ARCHITECTURE.md.
+//                          «Історія»), і /report_range — просто
+//                          друкує синтаксис довільного діапазону
+//                          (`/report ДД-ММ-РРРР ДД-ММ-РРРР`), який
+//                          треба набрати звичайним повідомленням.
+//                          Бот принципово не використовує force_reply/
+//                          клавіатур — інакше Telegram-клієнт залипає
+//                          на запиті й наступне повідомлення йде як
+//                          reply, а не як нова задача. Саме меню
+//                          (кнопка "/" у Telegram) реєструється
+//                          окремо, через setMyCommands —
+//                          docs/ARCHITECTURE.md.
 //   6. /tasks             — той самий дайджест, що й ранкове
 //                          нагадування (daily-reminder/, будні
 //                          9:00), на вимогу в будь-який момент;
@@ -108,27 +111,22 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // /report (нижче) може перелічити чимало задач одразу.
 const MAX_MESSAGE_LENGTH = 3800;
 
-// forceReply — для /report_range нижче: Telegram сам показує поле
-// вводу як "відповідь на" це повідомлення (без потреби зберігати
-// стан розмови на сервері між викликами функції — Deno Edge Function
-// без пам'яті між запитами) — відповідь користувача повертається з
-// message.reply_to_message.text, який дослівно дорівнює тексту цього
-// повідомлення (RANGE_PROMPT_TEXT нижче), і саме за цим handleMessage
-// впізнає, що це відповідь на запит діапазону, а не нова задача.
-async function sendMessage(chatId: number, text: string, options: { forceReply?: string } = {}) {
+// Бот НІКОЛИ не чіпляє reply_markup (ні force_reply, ні клавіатур):
+// інакше Telegram-клієнт «залипає» на цьому запиті — поле вводу
+// показує чужий плейсхолдер, а наступне повідомлення користувача
+// йде як reply на старе, а не як нова задача (саме це й дратувало
+// користувача після /report_range). Усі команди самодостатні: або
+// одразу роблять дію, або друкують синтаксис, який треба набрати
+// звичайним повідомленням.
+async function sendMessage(chatId: number, text: string) {
   const body = text.length > MAX_MESSAGE_LENGTH
     ? `${text.slice(0, MAX_MESSAGE_LENGTH)}\n\n… список скорочено, повний — у застосунку.`
     : text;
 
-  const payload: Record<string, unknown> = { chat_id: chatId, text: body };
-  if (options.forceReply) {
-    payload.reply_markup = { force_reply: true, input_field_placeholder: options.forceReply };
-  }
-
   await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ chat_id: chatId, text: body }),
   });
 }
 
@@ -328,9 +326,7 @@ function parseReportRange(args: string[]): ReportRange {
 // через setMyCommands — docs/ARCHITECTURE.md) — тицяєш замість того,
 // щоб набирати "/report тиждень" руками. Кожна лише підставляє той
 // самий аргумент, що й текстова команда, — parseReportRange() один
-// на всі шляхи. /report_range — окремо (явна перевірка в
-// handleMessage нижче, не сюди): не підставляє готовий аргумент, а
-// питає його в користувача через force_reply.
+// на всі шляхи.
 const COMMAND_TO_ARGS: Record<string, string> = {
   "/report_today": "сьогодні",
   "/report_week": "тиждень",
@@ -340,19 +336,17 @@ const COMMAND_TO_ARGS: Record<string, string> = {
   "/report_all": "весь",
 };
 
-// /report_range — питає діапазон окремим повідомленням (force_reply,
-// без inline-клавіатури — той самий принцип мінімалізму, що й у
-// решті бота) замість того, щоб змушувати одразу вгадувати повний
-// синтаксис "/report ДД-ММ-РРРР ДД-ММ-РРРР" напам'ять. Порівняння
-// message.reply_to_message.text === RANGE_PROMPT_TEXT нижче (у
-// handleMessage) — це і є "пам'ять" про діалог: Deno Edge Function
-// не тримає стан між викликами, але Telegram сам повертає текст
-// повідомлення, на яке відповідають, тож окремої таблиці/сесії в
-// базі для цього не треба.
-const RANGE_PROMPT_TEXT =
-  "📅 Введи дату чи діапазон для звіту:\n\n" +
-  "• Одна дата (ДД-ММ-РРРР) — усе виконане/скасоване ДО цієї дати.\n" +
-  "• Дві дати через пробіл (ДД-ММ-РРРР ДД-ММ-РРРР) — звіт за цей проміжок.";
+// /report_range — просто друкує синтаксис довільного діапазону
+// (набрати звичайним повідомленням). Раніше бот тут слав force_reply
+// і ловив відповідь через reply_to_message.text — але Telegram-
+// клієнт «залипав» на тому запиті: поле вводу лишалось прив'язаним
+// до нього, і наступне повідомлення йшло як reply, а не як нова
+// задача. Тепер жодного стану: /report ДД-ММ-РРРР ДД-ММ-РРРР
+// парситься у parseReportRange() тим самим кодом, що й решта.
+const RANGE_HELP_TEXT =
+  "📅 Звіт за довільний період — надішли команду:\n\n" +
+  "• `/report 01-08-2026 31-08-2026` — за проміжок дат.\n" +
+  "• `/report 31-08-2026` — усе виконане/скасоване ДО цієї дати.";
 
 type ArchivedTask = {
   title: string;
@@ -407,7 +401,7 @@ async function handleReport(chatId: number, userId: string, argsText: string) {
     `📊 Звіт за ${range.label}:\n\n` +
       `✅ Виконано (${done.length}):\n${listOf(done)}\n\n` +
       `🚫 Скасовано (${cancelled.length}):\n${listOf(cancelled)}\n\n` +
-      `Інші періоди: /report сьогодні · /report тиждень · /report минулий · /report місяць · /report минулий місяць · /report весь · /report_range (запитає дати)`
+      `Інші періоди: /report сьогодні · /report тиждень · /report минулий · /report місяць · /report минулий місяць · /report весь · /report ДД-ММ-РРРР ДД-ММ-РРРР (діапазон)`
   );
 }
 
@@ -453,8 +447,11 @@ async function handleMessage(message: Record<string, unknown>) {
     return;
   }
 
+  // /report_range — лише друкує синтаксис; жодного force_reply, тож
+  // бот не «залипає» на цьому запиті (перевірка до startsWith
+  // "/report" нижче, бо технічно теж ним починається).
   if (text === "/report_range") {
-    await sendMessage(chatId, RANGE_PROMPT_TEXT, { forceReply: "ДД-ММ-РРРР або ДД-ММ-РРРР ДД-ММ-РРРР" });
+    await sendMessage(chatId, RANGE_HELP_TEXT);
     return;
   }
 
@@ -467,20 +464,6 @@ async function handleMessage(message: Record<string, unknown>) {
 
   if (text === "/tasks") {
     await handleTasks(chatId, userId);
-    return;
-  }
-
-  // Відповідь на запит /report_range (force_reply вище) — Telegram
-  // повертає в reply_to_message.text ДОСЛІВНО текст того
-  // повідомлення, на яке відповідають; збіг із RANGE_PROMPT_TEXT і є
-  // "пам'яттю" про діалог (детальніше — коментар біля RANGE_PROMPT_TEXT).
-  const replyTo = message.reply_to_message as Record<string, unknown> | undefined;
-  if (replyTo?.text === RANGE_PROMPT_TEXT) {
-    if (!text) {
-      await sendMessage(chatId, "Не розпізнав дату. Спробуй ще раз: /report_range.");
-      return;
-    }
-    await handleReport(chatId, userId, text);
     return;
   }
 
