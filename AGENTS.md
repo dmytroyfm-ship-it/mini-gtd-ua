@@ -93,8 +93,11 @@ Supabase (Postgres + Auth + Storage + Edge Functions) + Netlify.
 - `js/app.js` — точка входу: `initTheme()` → `initAuth()` → монтує
   навігацію й фон → `initBackground()` → `initRouter()`.
 - `js/router.js` — таблиця маршрутів, захист (`protected`), History
-  API, плавний перехід між сторінками.
-- `js/config.js` — публічні (не секретні) конфіг-значення.
+  API, плавний перехід між сторінками. Маршрут із `feature: "<ключ>"`
+  активний лише коли `FEATURES["<ключ>"]` у `js/config.js` — так
+  вимкнено «Стрічку»/«Джерела» (`FEATURES.feed = false`).
+- `js/config.js` — публічні (не секретні) конфіг-значення +
+  `FEATURES` (прапорці вимкнення великих фіч, не видаляючи код).
 - `js/lib/supabaseClient.js` — єдиний спільний клієнт Supabase.
 - `js/store/*.js` — **уся** робота з даними (Supabase-запити,
   бізнес-логіка). Кожен файл — своя область (`taskStore.js`,
