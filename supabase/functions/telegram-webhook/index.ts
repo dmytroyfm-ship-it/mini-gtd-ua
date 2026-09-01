@@ -518,7 +518,15 @@ async function handleMessage(message: Record<string, unknown>) {
   if (subtasks.length > 0) {
     const { error: subtaskError } = await supabase
       .from("subtasks")
-      .insert(subtasks.map((subtaskTitle) => ({ task_id: task.id, user_id: userId, title: subtaskTitle })));
+      // position за порядком від ШІ — щоб кроки лягли як задумано, а
+      // не «усі 0» (subtasks.position default 0; сортування —
+      // js/store/subtaskStore.js getSubtasks за position).
+      .insert(subtasks.map((subtaskTitle, index) => ({
+        task_id: task.id,
+        user_id: userId,
+        title: subtaskTitle,
+        position: index,
+      })));
     // Задача вже збережена — невдале збереження підзадач не має
     // ховати сам факт, що задачу додано, лише логуємось.
     if (subtaskError) console.error(subtaskError);
