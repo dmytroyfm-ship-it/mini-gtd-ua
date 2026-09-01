@@ -20,7 +20,7 @@ const TRASH_SIGN = "✕";
 const EDIT_SIGN = "✎";
 
 export function renderSubtaskItem(subtask, handlers = {}) {
-  const { onToggle, onDelete, onDueDateChange, onAddTag, onEditTitle, detailed } = handlers;
+  const { onToggle, onDelete, onDueDateChange, onAddTag, onEditTitle, onMove, onRemoved, detailed } = handlers;
 
   const row = document.createElement("li");
   row.className = "subtask-item";
@@ -51,6 +51,15 @@ export function renderSubtaskItem(subtask, handlers = {}) {
     `
     : "";
 
+  // «↑»/«↓» — зміна порядку підзадач; лише коли handlers.onMove
+  // задано (SubtaskList вмикає його лише в detailed-режимі).
+  const moveHtml = onMove
+    ? `
+      <button type="button" class="subtask-item__move subtask-item__move--up" aria-label="Перемістити «${safeTitle}» вище">↑</button>
+      <button type="button" class="subtask-item__move subtask-item__move--down" aria-label="Перемістити «${safeTitle}» нижче">↓</button>
+    `
+    : "";
+
   row.innerHTML = `
     <div class="subtask-item__main">
       <input
@@ -64,6 +73,7 @@ export function renderSubtaskItem(subtask, handlers = {}) {
         ${tagsHtml}
       </div>
       ${dueHtml}
+      ${moveHtml}
       <button type="button" class="subtask-item__edit" aria-label="Редагувати назву «${safeTitle}»">${EDIT_SIGN}</button>
       <button type="button" class="subtask-item__delete" aria-label="Видалити підзадачу «${safeTitle}»">${TRASH_SIGN}</button>
     </div>
@@ -71,6 +81,11 @@ export function renderSubtaskItem(subtask, handlers = {}) {
 
   const checkbox = row.querySelector(".subtask-item__checkbox");
   const deleteButton = row.querySelector(".subtask-item__delete");
+
+  if (onMove) {
+    row.querySelector(".subtask-item__move--up").addEventListener("click", () => onMove(subtask, "up"));
+    row.querySelector(".subtask-item__move--down").addEventListener("click", () => onMove(subtask, "down"));
+  }
 
   checkbox.addEventListener("change", async () => {
     if (!onToggle) return;
@@ -99,6 +114,9 @@ export function renderSubtaskItem(subtask, handlers = {}) {
     try {
       await onDelete(subtask);
       row.remove();
+      // Даємо SubtaskList прибрати підзадачу зі своєї робочої копії
+      // й перерахувати край списку для кнопок «↑»/«↓».
+      if (onRemoved) onRemoved(subtask);
     } catch (err) {
       console.error(err);
       deleteButton.disabled = false;

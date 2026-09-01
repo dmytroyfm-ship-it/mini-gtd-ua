@@ -1,11 +1,14 @@
-// Один рядок «Історії»: назва задачі, нотатка (якщо є), позначка
+// Один рядок «Історії»: назва задачі, нотатка (якщо є), розклад
+// підзадач (якщо є — які виконані, які ні), позначка
 // «✅ Виконано» / «🚫 Скасовано» / «📁 В архіві» з датою — і кнопка
 // «Повернути у Вхідні» для всього, крім справді виконаного (виконані
 // повертати нема сенсу: щоб зробити задачу знову активною, простіше
 // зняти позначку «виконано» прямо на сторінці задачі). Сам нічого в
 // базу не пише — викликає handlers.onRestore і показує результат
 // (стан disabled). Логіка живе в js/store/taskStore.js
-// (PROJECT_RULES, п.6).
+// (PROJECT_RULES, п.6). Підзадачі тут — лише для огляду, без
+// чекбоксів: «Історія» це звіт, а не робочий екран (редагувати
+// підзадачі можна на сторінці задачі /task/:id).
 
 function escapeHtml(value) {
   const container = document.createElement("div");
@@ -34,7 +37,33 @@ function badgeOf(task) {
   return { cls: "neutral", text: "📁 В архіві" };
 }
 
-export function renderHistoryItem(task, handlers = {}) {
+// Розклад підзадач під рядком: скільки виконано з усіх + сам список
+// (виконані — з позначкою й закреслені, решта — з порожнім кружком).
+// Порожньо, коли підзадач нема — секція взагалі не малюється.
+function renderSubtasks(subtasks) {
+  if (!subtasks || subtasks.length === 0) return "";
+
+  const doneCount = subtasks.filter((subtask) => subtask.completed).length;
+  const items = subtasks
+    .map((subtask) => {
+      const done = Boolean(subtask.completed);
+      const marker = done ? "✓" : "○";
+      return `<li class="history-item__subtask${done ? " history-item__subtask--done" : ""}">
+        <span class="history-item__subtask-marker" aria-hidden="true">${marker}</span>
+        <span class="history-item__subtask-title">${escapeHtml(subtask.title)}</span>
+      </li>`;
+    })
+    .join("");
+
+  return `
+    <div class="history-item__subtasks">
+      <p class="history-item__subtasks-label">Підзадачі · ${doneCount} / ${subtasks.length} виконано</p>
+      <ul class="history-item__subtask-list">${items}</ul>
+    </div>
+  `;
+}
+
+export function renderHistoryItem(task, handlers = {}, subtasks = []) {
   const { onRestore } = handlers;
 
   const row = document.createElement("li");
@@ -45,6 +74,7 @@ export function renderHistoryItem(task, handlers = {}) {
   const resolvedAt = task.completed_at || task.cancelled_at || task.updated_at;
 
   const noteHtml = task.note ? `<p class="history-item__note">${escapeHtml(task.note)}</p>` : "";
+  const subtasksHtml = renderSubtasks(subtasks);
   const safeTitle = escapeHtml(task.title);
 
   // Кнопка (коли є) — перед бейджем, бейдж завжди останній
@@ -54,6 +84,7 @@ export function renderHistoryItem(task, handlers = {}) {
     <div class="history-item__body">
       <p class="history-item__title">${safeTitle}</p>
       ${noteHtml}
+      ${subtasksHtml}
     </div>
     ${isRestorable ? `<button type="button" class="history-item__restore">Повернути у Вхідні</button>` : ""}
     <span class="history-item__badge history-item__badge--${badge.cls}">${badge.text} · ${formatDate(resolvedAt)}</span>

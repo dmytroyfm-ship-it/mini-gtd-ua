@@ -14,6 +14,7 @@ import {
   setSubtaskDueDate,
   setSubtaskTags,
   setSubtaskTitle,
+  setSubtaskPositions,
   deleteSubtask,
 } from "../store/subtaskStore.js";
 import { breakdownTaskWithAI } from "../store/aiStore.js";
@@ -83,6 +84,18 @@ function loadSubtasks(wrapper, task, detailedSubtasks) {
         onDelete: (subtask) => deleteSubtask(subtask.id),
         onAdd: (title) => addSubtask(task.id, title),
         onEditTitle: (subtask, title) => setSubtaskTitle(subtask.id, title),
+        // Новий порядок (кнопки «↑»/«↓») — SubtaskList уже переставив
+        // рядки оптимістично; тут лише зберігаємо, а при помилці
+        // перечитуємо список, щоб DOM не розійшовся з базою.
+        onReorder: async (orderedIds) => {
+          try {
+            await setSubtaskPositions(orderedIds);
+          } catch (err) {
+            console.error(err);
+            window.alert("Не вдалося зберегти порядок підзадач. Оновлюю список…");
+            loadSubtasks(wrapper, task, detailedSubtasks);
+          }
+        },
         // Міні-дедлайн і міні-теги підзадачі — лише на сторінці
         // детального перегляду (detailedSubtasks); у компактних
         // картках («Вхідні», «Задачі», дошка) рядок підзадачі й

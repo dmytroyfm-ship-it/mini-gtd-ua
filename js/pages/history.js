@@ -2,12 +2,15 @@
 // видно одразу (getArchivedTasks() у taskStore.js — completed/
 // cancelled, незалежно від нічного автоперенесення о 22:30, pg_cron,
 // 20260826030000_schedule_daily_archival.sql, яке лише прибирає їх
-// із дошки/інших списків). Сама лише читає й показує (один запит),
-// звіт за період — фільтрація вже отриманого масиву на клієнті (для
+// із дошки/інших списків). Сама лише читає й показує (два запити:
+// задачі + їхні підзадачі одним getSubtasksByTaskIds() — під кожним
+// рядком видно, які підзадачі виконані, а які лишились), звіт за
+// період — фільтрація вже отриманого масиву на клієнті (для
 // особистого використання обсяг не той, щоб виправдовувати окремий
 // запит на кожну зміну періоду).
 
 import { getArchivedTasks, restoreFromHistory } from "../store/taskStore.js";
+import { getSubtasksByTaskIds } from "../store/subtaskStore.js";
 import { renderHistoryList } from "../components/HistoryList.js";
 
 const PRESETS = [
@@ -130,6 +133,7 @@ export async function renderHistory(root) {
   const listSlot = root.querySelector(".history-list-slot");
 
   let allTasks = [];
+  let subtasksByTask = new Map();
   let activePreset = "today";
 
   function setActivePreset(preset) {
@@ -163,15 +167,19 @@ export async function renderHistory(root) {
       ? "Вкажіть дати «З» і/або «По» вище, щоб побачити задачі за проміжок."
       : "За цей період нічого нема.";
 
-    listSlot.replaceChildren(renderHistoryList(filtered, { onRestore: handleRestore }, emptyText));
+    listSlot.replaceChildren(
+      renderHistoryList(filtered, { onRestore: handleRestore }, emptyText, subtasksByTask)
+    );
   }
 
   async function loadAll() {
     try {
       allTasks = await getArchivedTasks();
+      subtasksByTask = await getSubtasksByTaskIds(allTasks.map((task) => task.id));
     } catch (err) {
       console.error(err);
       allTasks = [];
+      subtasksByTask = new Map();
       listSlot.innerHTML = "";
       const error = document.createElement("p");
       error.className = "page__text";

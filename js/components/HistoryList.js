@@ -3,7 +3,7 @@
 
 import { renderHistoryItem } from "./HistoryItem.js";
 
-export function renderHistoryList(tasks, handlers, emptyText) {
+export function renderHistoryList(tasks, handlers, emptyText, subtasksByTask = new Map()) {
   const card = document.createElement("div");
   card.className = "task-list-card";
 
@@ -19,7 +19,7 @@ export function renderHistoryList(tasks, handlers, emptyText) {
   list.className = "history-list";
 
   tasks.forEach((task) => {
-    list.appendChild(renderHistoryItem(task, handlers));
+    list.appendChild(renderHistoryItem(task, handlers, subtasksByTask.get(task.id) || []));
   });
 
   card.appendChild(list);
