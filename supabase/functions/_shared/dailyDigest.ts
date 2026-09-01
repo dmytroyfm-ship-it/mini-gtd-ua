@@ -9,12 +9,13 @@
 //   • на сьогодні    — сьогодні входить у період [початок..due_date]
 //   • на завтра      — завтра входить у період, а сьогодні — ще ні
 //   • термінові      — status = "urgent", якщо дедлайн не потрапив
-//                      у жоден з блоків вище (чи дедлайну нема);
-//                      термінова задача, що вже в одному з блоків
-//                      вище за датою, лишається там, лише рядок
-//                      додатково позначається 🔴.
+//                      у жоден з блоків вище (чи дедлайну нема).
 //   • інші           — решта задач, що не підпали під жоден критерій
-//                      вище.
+//                      вище, але вже актуальні (без дедлайну або з
+//                      дедлайном, чий період уже почався).
+// Задачі, чий період ще попереду (початок пізніше за завтра) і які
+// не термінові, у дайджест не потрапляють узагалі — з'являться, коли
+// їхній період настане.
 // Усі п'ять блоків показуються завжди, навіть порожні — щоб одразу
 // було видно "прострочених нема", а не просто мовчазну відсутність
 // секції.
@@ -31,6 +32,9 @@ export type DigestTask = {
 };
 
 type Bucket = "overdue" | "today" | "tomorrow" | "urgent" | "other";
+// Псевдо-блок: задача на майбутній період, ще не актуальна — не
+// показуємо взагалі (не має власної секції в повідомленні).
+type Placement = Bucket | "future";
 
 // "2026-08-25" → "25-08-2026" (ДД-ММ-РРРР).
 function formatDueDate(dateStr: string): string {
@@ -51,19 +55,22 @@ function windowStartOf(task: DigestTask): string | null {
   return addDays(task.due_date, -task.recurrence_window_days);
 }
 
-function bucketOf(task: DigestTask, today: string, tomorrow: string): Bucket {
+function bucketOf(task: DigestTask, today: string, tomorrow: string): Placement {
   const windowStart = windowStartOf(task);
   if (windowStart && task.due_date) {
     if (task.due_date < today) return "overdue"; // весь період уже минув
     if (windowStart <= today) return "today"; // сьогодні всередині періоду
     if (windowStart <= tomorrow) return "tomorrow"; // період починається завтра (чи раніше, але не сьогодні)
+    // Період починається пізніше за завтра — задача ще не актуальна.
+    // Термінові все одно показуємо, решту — притримуємо до настання періоду.
+    if (task.status === "urgent") return "urgent";
+    return "future";
   }
   if (task.status === "urgent") return "urgent";
   return "other";
 }
 
 function formatTaskLine(task: DigestTask): string {
-  const marker = task.status === "urgent" ? "🔴 " : "";
   const windowStart = windowStartOf(task);
   let due = "";
   if (task.due_date && windowStart && windowStart !== task.due_date) {
@@ -71,14 +78,14 @@ function formatTaskLine(task: DigestTask): string {
   } else if (task.due_date) {
     due = ` (дедлайн ${formatDueDate(task.due_date)})`;
   }
-  return `• ${marker}${task.title}${due}`;
+  return `• ${task.title}${due}`;
 }
 
 const BUCKET_TITLES: Record<Bucket, string> = {
   overdue: "‼️ Прострочені",
   today: "⏰ Дедлайн сьогодні",
   tomorrow: "📅 Дедлайн завтра",
-  urgent: "🔴 Термінові (без дедлайну поруч)",
+  urgent: "🔴 Термінові",
   other: "🗒️ Інші задачі",
 };
 const BUCKET_EMPTY_TEXT: Record<Bucket, string> = {
@@ -99,7 +106,11 @@ export function buildDigestMessage(tasks: DigestTask[], header: string, appUrl: 
   const tomorrow = addDays(today, 1);
 
   const grouped: Record<Bucket, DigestTask[]> = { overdue: [], today: [], tomorrow: [], urgent: [], other: [] };
-  for (const task of tasks) grouped[bucketOf(task, today, tomorrow)].push(task);
+  for (const task of tasks) {
+    const placement = bucketOf(task, today, tomorrow);
+    if (placement === "future") continue; // задача на майбутній період — не показуємо
+    grouped[placement].push(task);
+  }
   // Найстаріші прострочені — першими, щоб одразу впадали в очі.
   grouped.overdue.sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""));
 
