@@ -90,3 +90,20 @@
   font-size: 0.95rem;
   text-align: center;
 }
+
+@media (max-width: 600px) {
+  /* Кнопки «Відновити» / «Видалити назавжди» не влазять поруч із
+     назвою — хай переносяться під неї. */
+  .trash-item {
+    flex-wrap: wrap;
+    padding: 0.9rem 1rem;
+  }
+
+  .trash-item__title {
+    overflow-wrap: anywhere;
+  }
+
+  .trash-item__actions {
+    flex: 1 1 100%;
+  }
+}

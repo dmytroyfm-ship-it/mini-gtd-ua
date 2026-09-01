@@ -108,8 +108,34 @@
   opacity: 0.5;
 }
 
-@media (max-width: 640px) {
+/* Планшет / вузький десктоп: три колонки по 280px+ не влазять —
+   переходимо на дві на всю доступну ширину, без горизонтального
+   скролу. */
+@media (max-width: 960px) {
   .board {
-    grid-template-columns: repeat(3, minmax(260px, 340px));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow-x: visible;
+  }
+
+  .board-column__body {
+    max-height: 62vh;
+  }
+}
+
+/* Телефон: колонки одна під одною на всю ширину — kanban-ряд на
+   375px нечитабельний, а горизонтальний скрол дошки незручний. */
+@media (max-width: 620px) {
+  .board {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+    margin-top: 1.25rem;
+  }
+
+  .board-page {
+    width: 100%;
+  }
+
+  .board-column__body {
+    max-height: none;
   }
 }

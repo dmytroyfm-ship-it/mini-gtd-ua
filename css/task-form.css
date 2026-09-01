@@ -82,3 +82,18 @@
 .task-form__error[hidden] {
   display: none;
 }
+
+@media (max-width: 600px) {
+  .task-form-card {
+    margin-top: 1.25rem;
+    padding: 1rem 1rem;
+    border-radius: 16px;
+  }
+
+  /* На всю ширину — велика зручна ціль для пальця замість
+     маленької кнопки біля лівого краю. */
+  .task-form__submit {
+    align-self: stretch;
+    text-align: center;
+  }
+}

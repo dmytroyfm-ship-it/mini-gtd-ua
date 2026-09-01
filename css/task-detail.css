@@ -297,3 +297,22 @@
   opacity: 0.5;
   cursor: default;
 }
+
+@media (max-width: 600px) {
+  .task-detail__content {
+    gap: 1.1rem;
+    margin-top: 1rem;
+  }
+
+  .materials-block,
+  .comments-block {
+    padding: 1.15rem 1.05rem;
+    border-radius: 16px;
+  }
+
+  /* Одна колонка — картки матеріалів у два стовпці на 375px занадто
+     вузькі, назва одразу ховається в трикрапку. */
+  .materials-block__grid {
+    grid-template-columns: 1fr;
+  }
+}

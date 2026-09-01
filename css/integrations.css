@@ -108,3 +108,15 @@
 .integrations-card__button--danger:hover {
   background: var(--accent-soft);
 }
+
+@media (max-width: 600px) {
+  .integrations-card {
+    padding: 1.1rem 1.05rem;
+    border-radius: 16px;
+  }
+
+  .integrations-card__button {
+    align-self: stretch;
+    text-align: center;
+  }
+}

@@ -53,3 +53,15 @@
   font-size: 1.1rem;
   color: var(--ink);
 }
+
+/* На телефоні широкі відступи .page з'їдали й так вузьку ширину
+   контенту — картки ставали затісними. */
+@media (max-width: 600px) {
+  .page {
+    padding: 1.6rem 0.9rem;
+  }
+
+  .someday-section + .someday-section {
+    margin-top: 1.75rem;
+  }
+}

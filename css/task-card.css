@@ -74,6 +74,10 @@
   font-weight: 700;
   font-size: 1.02rem;
   line-height: 1.35;
+  /* Довгі назви без пробілів (вставлене посилання тощо) інакше
+     розпирають картку ширше за екран — на телефоні вся картка
+     виїжджала за правий край (баг, знайдений користувачем). */
+  overflow-wrap: anywhere;
 }
 
 .task-card__title-link {
@@ -220,6 +224,9 @@
   color: var(--ink-dim);
   font-size: 0.85rem;
   line-height: 1.5;
+  /* Нотатка часто — просто вставлене посилання; без переносу
+     довгого URL картка розпирається ширше за екран. */
+  overflow-wrap: anywhere;
 }
 
 /* --- теги --- */
@@ -297,6 +304,10 @@
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  /* Grid-елемент за замовчуванням не стискається менше за свій
+     вміст (min-width: auto) — без цього селект із довгим текстом
+     («Читати / Дивитись») розпирав колонку 1fr і виходив за екран. */
+  min-width: 0;
 }
 
 .task-card__field-label {
@@ -713,7 +724,8 @@
 }
 
 .subtask-item__edit,
-.subtask-item__delete {
+.subtask-item__delete,
+.subtask-item__move {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -731,19 +743,36 @@
   transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
 
+.subtask-item__move {
+  font-size: 0.85rem;
+}
+
 .subtask-item:hover .subtask-item__edit,
 .subtask-item:hover .subtask-item__delete,
+.subtask-item:hover .subtask-item__move,
 .subtask-item:focus-within .subtask-item__edit,
 .subtask-item:focus-within .subtask-item__delete,
+.subtask-item:focus-within .subtask-item__move,
 .subtask-item__edit:focus-visible,
-.subtask-item__delete:focus-visible {
+.subtask-item__delete:focus-visible,
+.subtask-item__move:focus-visible {
   opacity: 1;
 }
 
 .subtask-item__edit:hover,
-.subtask-item__delete:hover {
+.subtask-item__delete:hover,
+.subtask-item__move:not(:disabled):hover {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+/* Край списку: «↑» у першого рядка / «↓» в останнього — показуються
+   разом із рештою кнопок при наведенні, але тьмяні й неклікабельні
+   (SubtaskList.updateMoveButtons ставить disabled). */
+.subtask-item:hover .subtask-item__move:disabled,
+.subtask-item:focus-within .subtask-item__move:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 .subtask-item__title-input {
@@ -818,8 +847,80 @@
   cursor: default;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 560px) {
+  .task-card {
+    padding: 1rem 1.05rem;
+    gap: 0.75rem;
+  }
+
+  /* flex-start, не center: назва переноситься на 2-3 рядки — інакше
+     чекбокс і кнопки ✎/кошик зависають посередині висоти назви
+     замість рівняння з першим рядком. */
+  .task-card__header {
+    align-items: flex-start;
+  }
+
+  .task-card__checkbox {
+    margin-top: 0.15rem;
+  }
+
+  .task-card--detail {
+    padding: 1.15rem 1.15rem;
+    gap: 1rem;
+    border-radius: 20px;
+  }
+
+  .task-card--detail .task-card__title,
+  .task-card--detail .task-card__edit-title-input {
+    font-size: 1.15rem;
+  }
+
+  /* Статус + список — одне під одним: удвох у ряд на вузькому екрані
+     обидва селекти нечитабельно вузькі. */
   .task-card__controls {
     grid-template-columns: 1fr;
+  }
+
+  /* Дедлайн: підпис на власному рядку, кожне поле — на всю ширину
+     (у ряд date-input + select + кнопки не влазять і виїжджають за
+     екран). */
+  .task-card__due-label {
+    flex: 1 1 100%;
+  }
+
+  .task-card__due-window-start,
+  .task-card__due-input,
+  .task-card__recurrence,
+  .task-card__skip-recurrence {
+    flex: 1 1 100%;
+  }
+
+  /* Стрілка «→» між «З» і «По» — зайва, коли поля й так одне під
+     одним; на власному рядку виглядала б загубленою. */
+  .task-card__due-range-arrow {
+    display: none;
+  }
+
+  /* Деталізований рядок підзадачі (/task/:id): чекбокс + назва +
+     дедлайн + «↑↓✎✕» у ряд на 375px не влазять — переносимо на
+     окремі рядки (дедлайн на всю ширину, тоді кнопки), і кнопки дій
+     завжди видимі (на дотику немає :hover). */
+  .subtask-item--detailed .subtask-item__main {
+    flex-wrap: wrap;
+  }
+
+  .subtask-item--detailed .subtask-item__due-input {
+    flex: 1 1 100%;
+    width: auto;
+  }
+
+  .subtask-item--detailed .subtask-item__edit,
+  .subtask-item--detailed .subtask-item__delete,
+  .subtask-item--detailed .subtask-item__move {
+    opacity: 1;
+  }
+
+  .subtask-item--detailed .subtask-item__move:disabled {
+    opacity: 0.3;
   }
 }

@@ -38,6 +38,7 @@
   font-weight: 700;
   font-size: 1.15rem;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .feed-card__text {
@@ -45,6 +46,9 @@
   color: var(--ink-dim);
   font-size: 0.92rem;
   line-height: 1.6;
+  /* Пости часто містять довгі посилання без пробілів — без переносу
+     картка розпирається за екран на телефоні. */
+  overflow-wrap: anywhere;
 }
 
 .feed-card__actions {
@@ -111,4 +115,21 @@
 .feed-card__skip:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+@media (max-width: 600px) {
+  .feed-list {
+    margin-top: 1.25rem;
+  }
+
+  .feed-card {
+    padding: 1rem 1.05rem;
+    border-radius: 16px;
+  }
+
+  /* «Відкрити» більше не тисне в правий край окремо — просто останнє
+     у ряду кнопок, що переноситься. */
+  .feed-card__open {
+    margin-left: 0;
+  }
 }
